@@ -6,11 +6,11 @@ from datetime import datetime
 def insertar_prediccion(variedad, viñedo, dia_desde_1501, brix, ph, acidez, fecha_cosecha):
 
     conexion = psycopg2.connect(
-        dbname="uva_db",
-        user="admin",
-        password="admin",
-        host="localhost",
-        port="5432"
+        dbname=os.environ["DB_NAME"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        port=os.environ["DB_PORT"]
     )
     cursor = conexion.cursor()
     cursor.execute("""
