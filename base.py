@@ -1,29 +1,26 @@
-import sqlite3
 
-def crear_base_datos():
-    conn = sqlite3.connect("database.db")
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS predicciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha TEXT,
-            variedad TEXT,
-            viniedo TEXT,
-            brix REAL,
-            ph REAL,
-            acidez REAL,
-            dias_restantes INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
+import psycopg2
+from datetime import datetime
 
-def insertar_prediccion(fecha, variedad, viniedo, brix, ph, acidez, dias_restantes):
-    conn = sqlite3.connect("database.db")
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO predicciones (fecha, variedad, viniedo, brix, ph, acidez, dias_restantes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (fecha, variedad, viniedo, brix, ph, acidez, dias_restantes))
-    conn.commit()
-    conn.close()
+
+def insertar_prediccion(variedad, viñedo, dia_desde_1501, brix, ph, acidez, fecha_cosecha):
+
+    conexion = psycopg2.connect(
+        dbname="uva_db",
+        user="admin",
+        password="admin",
+        host="localhost",
+        port="5432"
+    )
+    cursor = conexion.cursor()
+    cursor.execute("""
+        INSERT INTO evolucion_uva ("Variedad", "Viñedo", "Día desde 15/01", "Brix", "pH", "Ac Total", "Fecha_Cosecha")
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (variedad, viñedo, dia_desde_1501, brix, ph, acidez, fecha_cosecha))
+
+    conexion.commit()
+    cursor.close()
+    conexion.close()
+
+
+
