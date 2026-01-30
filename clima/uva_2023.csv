@@ -1,0 +1,297 @@
+Variedad,Viñedo,Día desde 15/01,Brix,pH,Ac Total,Días hasta cosecha,Fecha_Cosecha
+Cabernet,San Carlos,15,14.05,3.19,11.05,56,30/01
+Cabernet,San Carlos,20,15.13,3.12,10.2,51,04/02
+Cabernet,San Carlos,25,13.92,3.2,10.0,46,09/02
+Cabernet,San Carlos,30,15.63,3.21,9.07,41,14/02
+Cabernet,San Carlos,35,17.5,3.22,9.97,36,19/02
+Cabernet,San Carlos,40,17.8,3.24,8.5,31,24/02
+Cabernet,San Carlos,45,18.17,3.34,8.07,26,01/03
+Cabernet,San Carlos,50,20.42,3.34,8.19,21,06/03
+Cabernet,San Carlos,55,21.22,3.39,7.83,16,11/03
+Cabernet,San Carlos,60,22.31,3.57,6.81,11,16/03
+Cabernet,San Carlos,65,22.86,3.54,6.04,6,21/03
+Cabernet,San Carlos,71,24.46,3.51,5.82,0,27/03
+Syrah,Agrelo,15,14.57,3.16,9.94,25,30/01
+Syrah,Agrelo,20,16.76,3.32,9.5,20,04/02
+Syrah,Agrelo,25,19.39,3.32,7.55,15,09/02
+Syrah,Agrelo,30,20.15,3.37,7.23,10,14/02
+Syrah,Agrelo,35,22.18,3.52,6.26,5,19/02
+Syrah,Agrelo,40,24.7,3.57,6.67,0,24/02
+Malbec,Agrelo,15,13.68,3.23,10.73,37,30/01
+Malbec,Agrelo,20,14.68,3.16,9.82,32,04/02
+Malbec,Agrelo,25,16.58,3.14,8.92,27,09/02
+Malbec,Agrelo,30,19.05,3.26,8.49,22,14/02
+Malbec,Agrelo,35,18.85,3.37,8.0,17,19/02
+Malbec,Agrelo,40,20.4,3.32,7.81,12,24/02
+Malbec,Agrelo,45,21.31,3.46,6.16,7,01/03
+Malbec,Agrelo,52,25.25,3.65,4.84,0,08/03
+Cabernet,Drummond,15,13.15,3.11,10.6,50,30/01
+Cabernet,Drummond,20,14.67,3.16,10.37,45,04/02
+Cabernet,Drummond,25,15.34,3.2,9.09,40,09/02
+Cabernet,Drummond,30,16.92,3.25,9.53,35,14/02
+Cabernet,Drummond,35,16.09,3.37,8.73,30,19/02
+Cabernet,Drummond,40,19.17,3.26,8.49,25,24/02
+Cabernet,Drummond,45,19.17,3.31,8.42,20,01/03
+Cabernet,Drummond,50,20.67,3.4,7.65,15,06/03
+Cabernet,Drummond,55,22.09,3.43,7.03,10,11/03
+Cabernet,Drummond,60,24.12,3.46,6.52,5,16/03
+Cabernet,Drummond,65,24.53,3.56,6.36,0,21/03
+Syrah,Drummond,15,14.44,3.07,10.54,43,30/01
+Syrah,Drummond,20,14.45,3.17,10.03,38,04/02
+Syrah,Drummond,25,16.2,3.24,9.9,33,09/02
+Syrah,Drummond,30,17.47,3.25,9.19,28,14/02
+Syrah,Drummond,35,19.04,3.24,8.56,23,19/02
+Syrah,Drummond,40,20.01,3.33,8.27,18,24/02
+Syrah,Drummond,45,20.79,3.39,7.29,13,01/03
+Syrah,Drummond,50,22.08,3.38,6.4,8,06/03
+Syrah,Drummond,58,24.07,3.43,6.01,0,14/03
+Malbec,Agrelo,15,14.05,3.19,9.74,26,30/01
+Malbec,Agrelo,20,17.05,3.19,9.07,21,04/02
+Malbec,Agrelo,25,19.35,3.34,8.36,16,09/02
+Malbec,Agrelo,30,20.29,3.31,7.56,11,14/02
+Malbec,Agrelo,35,21.13,3.48,6.22,6,19/02
+Malbec,Agrelo,41,25.25,3.65,4.84,0,25/02
+Syrah,Drummond,15,13.6,3.07,10.93,44,30/01
+Syrah,Drummond,20,14.7,3.1,9.83,39,04/02
+Syrah,Drummond,25,15.72,3.23,10.16,34,09/02
+Cabernet,San Carlos,15,14.05,3.19,11.05,56,30/01
+Cabernet,San Carlos,20,15.13,3.12,10.2,51,04/02
+Cabernet,San Carlos,25,13.92,3.2,10.0,46,09/02
+Cabernet,San Carlos,30,15.63,3.21,9.07,41,14/02
+Cabernet,San Carlos,35,17.5,3.22,9.97,36,19/02
+Cabernet,San Carlos,40,17.8,3.24,8.5,31,24/02
+Cabernet,San Carlos,45,18.17,3.34,8.07,26,01/03
+Cabernet,San Carlos,50,20.42,3.34,8.19,21,06/03
+Cabernet,San Carlos,55,21.22,3.39,7.83,16,11/03
+Cabernet,San Carlos,60,22.31,3.57,6.81,11,16/03
+Cabernet,San Carlos,65,22.86,3.54,6.04,6,21/03
+Cabernet,San Carlos,71,24.46,3.51,5.82,0,27/03
+Syrah,Agrelo,15,14.57,3.16,9.94,25,30/01
+Syrah,Agrelo,20,16.76,3.32,9.5,20,04/02
+Syrah,Agrelo,25,19.39,3.32,7.55,15,09/02
+Syrah,Agrelo,30,20.15,3.37,7.23,10,14/02
+Syrah,Agrelo,35,22.18,3.52,6.26,5,19/02
+Syrah,Agrelo,40,24.7,3.57,6.67,0,24/02
+Malbec,Agrelo,15,13.68,3.23,10.73,37,30/01
+Malbec,Agrelo,20,14.68,3.16,9.82,32,04/02
+Malbec,Agrelo,25,16.58,3.14,8.92,27,09/02
+Malbec,Agrelo,30,19.05,3.26,8.49,22,14/02
+Malbec,Agrelo,35,18.85,3.37,8.0,17,19/02
+Malbec,Agrelo,40,20.4,3.32,7.81,12,24/02
+Malbec,Agrelo,45,21.31,3.46,6.16,7,01/03
+Malbec,Agrelo,52,25.25,3.65,4.84,0,08/03
+Cabernet,Drummond,15,13.15,3.11,10.6,50,30/01
+Cabernet,Drummond,20,14.67,3.16,10.37,45,04/02
+Cabernet,Drummond,25,15.34,3.2,9.09,40,09/02
+Cabernet,Drummond,30,16.92,3.25,9.53,35,14/02
+Cabernet,Drummond,35,16.09,3.37,8.73,30,19/02
+Cabernet,Drummond,40,19.17,3.26,8.49,25,24/02
+Cabernet,Drummond,45,19.17,3.31,8.42,20,01/03
+Cabernet,Drummond,50,20.67,3.4,7.65,15,06/03
+Cabernet,Drummond,55,22.09,3.43,7.03,10,11/03
+Cabernet,Drummond,60,24.12,3.46,6.52,5,16/03
+Cabernet,Drummond,65,24.53,3.56,6.36,0,21/03
+Syrah,Drummond,15,14.44,3.07,10.54,43,30/01
+Syrah,Drummond,20,14.45,3.17,10.03,38,04/02
+Syrah,Drummond,25,16.2,3.24,9.9,33,09/02
+Syrah,Drummond,30,17.47,3.25,9.19,28,14/02
+Syrah,Drummond,35,19.04,3.24,8.56,23,19/02
+Syrah,Drummond,30,17.38,3.26,9.69,29,14/02
+Syrah,Drummond,35,18.79,3.31,8.3,24,19/02
+Syrah,Drummond,40,19.65,3.34,7.96,19,24/02
+Syrah,Drummond,45,21.34,3.35,7.58,14,01/03
+Syrah,Drummond,50,22.34,3.39,6.67,9,06/03
+Syrah,Drummond,59,22.98,3.44,6.75,0,15/03
+Malbec,San Carlos,15,14.45,3.13,10.81,51,30/01
+Malbec,San Carlos,20,14.82,3.13,9.86,46,04/02
+Malbec,San Carlos,25,15.39,3.2,9.24,41,09/02
+Malbec,San Carlos,30,16.55,3.28,9.0,36,14/02
+Malbec,San Carlos,35,17.64,3.31,8.99,31,19/02
+Malbec,San Carlos,40,18.83,3.29,8.03,26,24/02
+Malbec,San Carlos,45,19.32,3.31,7.89,21,01/03
+Malbec,San Carlos,50,21.15,3.31,7.5,16,06/03
+Malbec,San Carlos,55,21.13,3.38,7.17,11,11/03
+Malbec,San Carlos,60,22.13,3.49,6.14,6,16/03
+Malbec,San Carlos,66,25.57,3.84,3.67,0,22/03
+Malbec,Drummond,15,14.91,3.17,10.79,38,30/01
+Malbec,Drummond,20,15.09,3.18,9.56,33,04/02
+Malbec,Drummond,25,16.1,3.2,8.8,28,09/02
+Malbec,Drummond,30,17.94,3.24,8.67,23,14/02
+Malbec,Drummond,35,18.47,3.35,8.29,18,19/02
+Malbec,Drummond,40,19.57,3.4,7.84,13,24/02
+Malbec,Drummond,45,21.28,3.51,7.03,8,01/03
+Malbec,Drummond,53,23.76,3.77,3.99,0,09/03
+Malbec,Agrelo,15,13.93,3.15,9.91,39,30/01
+Malbec,Agrelo,20,15.13,3.14,9.56,34,04/02
+Malbec,Agrelo,25,17.1,3.29,9.4,29,09/02
+Malbec,Agrelo,30,17.23,3.26,9.03,24,14/02
+Malbec,Agrelo,35,19.14,3.44,8.23,19,19/02
+Malbec,Agrelo,40,20.47,3.35,7.6,14,24/02
+Malbec,Agrelo,45,21.59,3.45,7.29,9,01/03
+Malbec,Agrelo,54,22.57,3.4,5.89,0,10/03
+Cabernet,Drummond,15,13.64,3.14,10.97,47,30/01
+Cabernet,Drummond,20,13.52,3.22,9.31,42,04/02
+Cabernet,Drummond,25,15.66,3.31,9.78,37,09/02
+Cabernet,Drummond,30,16.96,3.34,8.89,32,14/02
+Cabernet,Drummond,35,18.12,3.31,8.46,27,19/02
+Cabernet,Drummond,40,18.82,3.3,8.16,22,24/02
+Cabernet,Drummond,45,20.43,3.37,7.86,17,01/03
+Cabernet,Drummond,50,20.31,3.39,6.85,12,06/03
+Cabernet,Drummond,55,22.57,3.46,6.64,7,11/03
+Cabernet,Drummond,62,23.8,3.53,6.18,0,18/03
+Malbec,Drummond,15,13.85,3.17,9.83,33,30/01
+Malbec,Drummond,20,16.2,3.19,9.0,28,04/02
+Malbec,Drummond,25,17.92,3.32,8.27,23,09/02
+Malbec,Drummond,30,18.47,3.28,8.74,18,14/02
+Malbec,Drummond,35,20.16,3.29,7.89,13,19/02
+Malbec,Drummond,40,21.05,3.4,6.77,8,24/02
+Malbec,Drummond,48,23.76,3.77,3.99,0,04/03
+Syrah,Agrelo,15,14.48,3.15,10.24,29,30/01
+Syrah,Agrelo,20,16.58,3.27,9.47,24,04/02
+Syrah,Agrelo,25,18.81,3.23,8.71,19,09/02
+Syrah,Agrelo,30,18.46,3.28,7.89,14,14/02
+Syrah,Agrelo,35,21.35,3.39,7.06,9,19/02
+Syrah,Agrelo,44,22.53,3.52,6.43,0,28/02
+Malbec,San Carlos,15,13.91,3.07,10.7,42,30/01
+Malbec,San Carlos,20,14.67,3.12,10.05,37,04/02
+Malbec,San Carlos,25,15.45,3.18,9.37,32,09/02
+Malbec,San Carlos,30,18.48,3.23,8.7,27,14/02
+Malbec,San Carlos,35,18.96,3.25,8.45,22,19/02
+Malbec,San Carlos,40,20.43,3.34,8.1,17,24/02
+Malbec,San Carlos,45,21.2,3.36,7.2,12,01/03
+Malbec,San Carlos,50,22.09,3.43,6.78,7,06/03
+Malbec,San Carlos,57,25.57,3.84,3.67,0,13/03
+Cabernet,Agrelo,15,13.57,3.18,10.41,43,30/01
+Cabernet,Agrelo,20,14.53,3.17,10.26,38,04/02
+Cabernet,Agrelo,25,16.32,3.09,9.47,33,09/02
+Cabernet,Agrelo,30,17.36,3.26,8.71,28,14/02
+Cabernet,Agrelo,35,19.05,3.36,7.72,23,19/02
+Cabernet,Agrelo,40,19.26,3.34,8.15,18,24/02
+Cabernet,Agrelo,45,20.88,3.35,7.56,13,01/03
+Cabernet,Agrelo,50,21.96,3.43,6.82,8,06/03
+Cabernet,Agrelo,58,23.56,3.46,6.52,0,14/03
+Syrah,San Carlos,15,14.32,3.15,10.64,44,30/01
+Syrah,San Carlos,20,15.28,3.15,9.71,39,04/02
+Syrah,San Carlos,25,15.41,3.11,10.07,34,09/02
+Syrah,San Carlos,30,16.57,3.24,8.87,29,14/02
+Syrah,San Carlos,35,18.46,3.34,8.7,24,19/02
+Syrah,San Carlos,40,19.2,3.33,8.02,19,24/02
+Syrah,San Carlos,45,20.55,3.46,7.57,14,01/03
+Syrah,San Carlos,50,22.23,3.46,7.27,9,06/03
+Syrah,San Carlos,59,23.14,3.4,6.53,0,15/03
+Syrah,San Carlos,15,12.86,3.09,10.35,51,30/01
+Syrah,San Carlos,20,14.98,3.13,10.38,46,04/02
+Syrah,San Carlos,25,16.02,3.2,9.47,41,09/02
+Syrah,San Carlos,30,16.27,3.28,9.33,36,14/02
+Syrah,San Carlos,35,16.82,3.29,9.05,31,19/02
+Syrah,San Carlos,40,18.31,3.33,8.44,26,24/02
+Syrah,San Carlos,45,19.45,3.28,8.23,21,01/03
+Syrah,San Carlos,50,20.99,3.41,7.92,16,06/03
+Syrah,San Carlos,55,22.14,3.45,6.34,11,11/03
+Syrah,San Carlos,60,23.33,3.46,6.64,6,16/03
+Syrah,San Carlos,66,23.95,3.53,6.43,0,22/03
+Syrah,Drummond,15,14.23,2.98,10.15,36,30/01
+Syrah,Drummond,20,15.02,3.26,9.83,31,04/02
+Syrah,Drummond,25,16.63,3.23,8.94,26,09/02
+Syrah,Drummond,30,18.03,3.22,7.97,21,14/02
+Syrah,Drummond,35,19.62,3.4,7.72,16,19/02
+Syrah,Drummond,40,21.13,3.43,7.0,11,24/02
+Syrah,Drummond,45,22.34,3.41,7.19,6,01/03
+Syrah,Drummond,51,24.51,3.44,6.23,0,07/03
+Malbec,San Carlos,15,13.56,3.09,9.9,49,30/01
+Malbec,San Carlos,20,14.56,3.17,9.95,44,04/02
+Malbec,San Carlos,25,15.15,3.13,9.89,39,09/02
+Malbec,San Carlos,30,17.0,3.19,9.03,34,14/02
+Malbec,San Carlos,35,17.62,3.39,8.88,29,19/02
+Malbec,San Carlos,40,18.28,3.33,7.84,24,24/02
+Malbec,San Carlos,45,20.2,3.44,8.29,19,01/03
+Malbec,San Carlos,50,21.3,3.36,6.92,14,06/03
+Malbec,San Carlos,55,21.33,3.29,7.05,9,11/03
+Malbec,San Carlos,64,23.07,3.51,6.8,0,20/03
+Cabernet,Drummond,15,13.73,3.14,10.28,42,30/01
+Cabernet,Drummond,20,14.74,3.21,9.84,37,04/02
+Cabernet,Drummond,25,15.98,3.22,9.63,32,09/02
+Cabernet,Drummond,30,17.02,3.26,8.92,27,14/02
+Cabernet,Drummond,35,19.18,3.3,8.1,22,19/02
+Cabernet,Drummond,40,19.58,3.4,8.4,17,24/02
+Cabernet,Drummond,45,20.4,3.34,7.21,12,01/03
+Cabernet,Drummond,50,22.34,3.48,6.47,7,06/03
+Cabernet,Drummond,57,22.98,3.49,6.13,0,13/03
+Cabernet,San Carlos,15,13.55,3.07,10.86,53,30/01
+Cabernet,San Carlos,20,13.48,3.09,10.05,48,04/02
+Cabernet,San Carlos,25,15.96,3.2,9.62,43,09/02
+Cabernet,San Carlos,30,16.36,3.22,9.21,38,14/02
+Cabernet,San Carlos,35,16.51,3.33,8.97,33,19/02
+Cabernet,San Carlos,40,19.32,3.34,8.64,28,24/02
+Cabernet,San Carlos,45,19.05,3.28,7.96,23,01/03
+Cabernet,San Carlos,50,19.73,3.4,8.08,18,06/03
+Cabernet,San Carlos,55,21.19,3.45,6.94,13,11/03
+Cabernet,San Carlos,60,22.2,3.4,6.07,8,16/03
+Cabernet,San Carlos,68,23.36,3.48,6.58,0,24/03
+Cabernet,San Carlos,15,12.44,3.06,10.87,63,30/01
+Cabernet,San Carlos,20,13.91,3.15,10.94,58,04/02
+Cabernet,San Carlos,25,14.04,3.17,9.69,53,09/02
+Cabernet,San Carlos,30,14.92,3.26,9.55,48,14/02
+Cabernet,San Carlos,35,15.88,3.12,9.06,43,19/02
+Cabernet,San Carlos,40,17.08,3.19,8.84,38,24/02
+Cabernet,San Carlos,45,18.71,3.25,8.26,33,01/03
+Cabernet,San Carlos,50,18.41,3.26,8.31,28,06/03
+Cabernet,San Carlos,55,19.9,3.4,8.38,23,11/03
+Cabernet,San Carlos,60,19.85,3.4,7.05,18,16/03
+Cabernet,San Carlos,65,22.06,3.4,7.01,13,21/03
+Cabernet,San Carlos,70,21.92,3.43,6.64,8,26/03
+Cabernet,San Carlos,78,24.14,3.44,6.07,0,03/04
+Cabernet,San Carlos,15,13.27,3.11,10.87,60,30/01
+Cabernet,San Carlos,20,13.99,3.13,10.48,55,04/02
+Cabernet,San Carlos,25,14.64,3.22,10.43,50,09/02
+Cabernet,San Carlos,30,15.01,3.19,9.61,45,14/02
+Cabernet,San Carlos,35,16.4,3.32,9.27,40,19/02
+Cabernet,San Carlos,40,17.06,3.3,8.88,35,24/02
+Cabernet,San Carlos,45,18.55,3.39,8.51,30,01/03
+Cabernet,San Carlos,50,19.18,3.24,7.95,25,06/03
+Cabernet,San Carlos,55,20.92,3.36,6.93,20,11/03
+Cabernet,San Carlos,60,20.95,3.45,7.36,15,16/03
+Cabernet,San Carlos,65,21.71,3.41,6.68,10,21/03
+Cabernet,San Carlos,70,22.74,3.37,6.63,5,26/03
+Cabernet,San Carlos,75,24.63,3.42,6.37,0,31/03
+Malbec,Drummond,15,13.64,3.14,10.56,43,30/01
+Malbec,Drummond,20,14.43,3.23,9.59,38,04/02
+Malbec,Drummond,25,15.83,3.24,9.26,33,09/02
+Malbec,Drummond,30,17.63,3.33,9.2,28,14/02
+Malbec,Drummond,35,17.48,3.31,8.69,23,19/02
+Malbec,Drummond,40,19.0,3.38,8.06,18,24/02
+Malbec,Drummond,45,20.26,3.43,7.43,13,01/03
+Malbec,Drummond,50,22.39,3.38,6.87,8,06/03
+Malbec,Drummond,58,23.76,3.77,3.99,0,14/03
+Syrah,Drummond,15,14.17,3.12,10.87,43,30/01
+Syrah,Drummond,20,14.8,3.16,10.05,38,04/02
+Syrah,Drummond,25,15.69,3.26,9.56,33,09/02
+Syrah,Drummond,30,17.26,3.27,9.51,28,14/02
+Syrah,Drummond,35,18.92,3.41,8.54,23,19/02
+Syrah,Drummond,40,18.92,3.33,7.35,18,24/02
+Syrah,Drummond,45,21.13,3.43,7.08,13,01/03
+Syrah,Drummond,50,21.74,3.44,6.47,8,06/03
+Syrah,Drummond,58,22.64,3.54,6.34,0,14/03
+Cabernet,Drummond,15,13.27,3.17,10.34,50,30/01
+Cabernet,Drummond,20,14.43,3.2,10.3,45,04/02
+Cabernet,Drummond,25,15.48,3.24,8.88,40,09/02
+Cabernet,Drummond,30,16.8,3.2,8.68,35,14/02
+Cabernet,Drummond,35,17.79,3.34,8.73,30,19/02
+Cabernet,Drummond,40,19.09,3.39,8.7,25,24/02
+Cabernet,Drummond,45,20.51,3.38,7.87,20,01/03
+Cabernet,Drummond,50,19.97,3.37,7.13,15,06/03
+Cabernet,Drummond,55,22.93,3.41,6.96,10,11/03
+Cabernet,Drummond,60,23.2,3.46,6.97,5,16/03
+Cabernet,Drummond,65,23.69,3.51,5.78,0,21/03
+Cabernet,San Carlos,15,12.34,2.98,10.25,55,30/01
+Cabernet,San Carlos,20,15.15,3.12,9.53,50,04/02
+Cabernet,San Carlos,25,14.28,3.3,9.65,45,09/02
+Cabernet,San Carlos,30,16.58,3.22,9.28,40,14/02
+Cabernet,San Carlos,35,17.39,3.13,8.57,35,19/02
+Cabernet,San Carlos,40,17.75,3.22,8.4,30,24/02
+Cabernet,San Carlos,45,19.43,3.33,8.54,25,01/03
+Cabernet,San Carlos,50,20.1,3.41,7.7,20,06/03
+Cabernet,San Carlos,55,20.7,3.47,7.07,15,11/03
+Cabernet,San Carlos,60,22.17,3.47,7.11,10,16/03
+Cabernet,San Carlos,65,22.42,3.52,6.13,5,21/03
+Cabernet,San Carlos,70,24.41,3.53,6.25,0,26/03
