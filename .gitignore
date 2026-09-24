@@ -6,3 +6,12 @@ venv/
 .env
 .streamlit/
 .DS_Store
+referencia_bodega/
+node_modules/
+*.tsbuildinfo
+clima/
+.codex
+.agents
+
+
+
