@@ -198,7 +198,17 @@ python -m py_compile modelo_final/backend/api.py modelo_final/backend/core/*.py 
 cd modelo_final/frontend && npm run build
 ```
 
-`render.yaml` pertenece a la configuración de despliegue del proyecto inicial y no representa todavía la arquitectura actual de GrapeSense. Debe adaptarse antes de publicar esta versión.
+## Despliegue en Render
+
+El proyecto incluye un contenedor de producción y un `render.yaml` que crea el servicio web, PostgreSQL y el disco persistente de modelos. La guía completa, incluida la migración de la base local, está en [`DEPLOY_RENDER.md`](DEPLOY_RENDER.md).
+
+La ejecución local continúa utilizando `./modelo_final/iniciar.sh`; Render utiliza el `Dockerfile` de la raíz.
+
+Para preparar un respaldo privado antes de migrar:
+
+```bash
+./scripts/respaldo_postgresql.sh
+```
 
 ## Criterio de validación
 

@@ -1,6 +1,7 @@
 """Entrenamiento reproducible por bodega directamente desde PostgreSQL."""
 from datetime import datetime, timezone
 from pathlib import Path
+import os
 import re
 
 import joblib
@@ -11,7 +12,9 @@ from psycopg2.extras import Json, RealDictCursor
 from .modelo import FEATURES, TARGET, evaluation_metrics, fit_model, predict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-MODELS_DIR = BACKEND_ROOT / "modelos"
+# En producción, esta ruta apunta al disco persistente del proveedor. El modelo
+# base sigue versionado dentro de la aplicación y funciona como respaldo.
+MODELS_DIR = Path(os.getenv("MODEL_STORAGE_DIR", BACKEND_ROOT / "modelos"))
 MIN_TRAIN_SAMPLES = 30
 MIN_EVALUATION_SAMPLES = 12
 SMALL_LATEST_VINTAGE = 150
