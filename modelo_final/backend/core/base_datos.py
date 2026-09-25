@@ -8,8 +8,8 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
-ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "datos"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+DATA = BACKEND_ROOT / "datos"
 
 COLUMNS = [
     "muestra_id", "lote_id", "vendimia", "fecha_medicion", "tipo_muestra",
@@ -187,13 +187,14 @@ def save_predictions(connection, frame, predictions, model_version, notes=""):
     predicted = pd.Series(predictions, index=frame.index, dtype=float)
     harvest_dates = dates + pd.to_timedelta(predicted.round().astype(int), unit="D")
     prediction_columns = [
+        "bodega_id", "finca_id", "cuartel_id",
         "muestra_id", "lote_id", "vendimia", "fecha_medicion", *feature_columns,
         "dias_predichos", "fecha_cosecha_estimada", "modelo_version", "notas",
         "clima_pasado_desde", "clima_pasado_hasta", "clima_futuro_desde",
         "clima_futuro_hasta", "origen_clima", "url_clima",
     ]
     output = pd.DataFrame(index=frame.index)
-    for column in ("muestra_id", "lote_id", "vendimia"):
+    for column in ("bodega_id", "finca_id", "cuartel_id", "muestra_id", "lote_id", "vendimia"):
         output[column] = frame[column] if column in frame else None
     output["fecha_medicion"] = dates.dt.date
     for column in feature_columns:
@@ -245,7 +246,7 @@ def show_summary(connection):
     print(f"predicciones_uva | {prediction_count} registros")
 
 
-def get_predictions(limit=500):
+def get_predictions(bodega_id, limit=500):
     query = """
         SELECT prediccion_id, fecha_medicion, fecha_creacion, muestra_id, lote_id,
                vendimia, variedad, vinedo, "Brix", "pH", acidez_total_g_l,
@@ -253,32 +254,36 @@ def get_predictions(limit=500):
                clima_pasado_hasta, clima_futuro_desde, clima_futuro_hasta,
                origen_clima, modelo_version, notas
         FROM predicciones_uva
+        WHERE bodega_id = %s
         ORDER BY fecha_creacion DESC
         LIMIT %s
     """
     with connect() as connection:
         initialize(connection)
         with connection.cursor() as cursor:
-            cursor.execute(query, (int(limit),))
+            cursor.execute(query, (bodega_id, int(limit)))
             columns = [item.name for item in cursor.description]
             return pd.DataFrame(cursor.fetchall(), columns=columns)
 
 
-def get_prediction(prediction_id):
+def get_prediction(bodega_id, prediction_id):
     with connect() as connection:
         initialize(connection)
         with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM predicciones_uva WHERE prediccion_id = %s", (prediction_id,))
+            cursor.execute(
+                "SELECT * FROM predicciones_uva WHERE bodega_id = %s AND prediccion_id = %s",
+                (bodega_id, prediction_id),
+            )
             row = cursor.fetchone()
             if row is None:
                 return None
             return {item.name: value for item, value in zip(cursor.description, row)}
 
 
-def get_samples(limit=100, offset=0, vendimia=None, variedad=None, vinedo=None,
+def get_samples(bodega_id, limit=100, offset=0, vendimia=None, variedad=None, vinedo=None,
                 tipo_muestra=None, search=None):
-    filters = []
-    parameters = []
+    filters = ["bodega_id = %s"]
+    parameters = [bodega_id]
     for column, value in (
         ("vendimia", vendimia), ("variedad", variedad), ("vinedo", vinedo),
         ("tipo_muestra", tipo_muestra),
@@ -287,16 +292,22 @@ def get_samples(limit=100, offset=0, vendimia=None, variedad=None, vinedo=None,
             filters.append(f"{column} = %s")
             parameters.append(value)
     if search:
-        filters.append("(muestra_id ILIKE %s OR lote_id ILIKE %s)")
+        filters.append("(COALESCE(codigo_muestra, muestra_id) ILIKE %s OR lote_id ILIKE %s)")
         term = f"%{search.strip()}%"
         parameters.extend([term, term])
     where = " WHERE " + " AND ".join(filters) if filters else ""
     select = f"""
-        SELECT muestra_id, lote_id, vendimia, fecha_medicion, tipo_muestra,
+        SELECT COALESCE(codigo_muestra, muestra_id) AS muestra_id,
+               lote_id, vendimia, fecha_medicion, tipo_muestra,
                numero_muestra, variedad, vinedo, "Brix", "pH", acidez_total_g_l,
-               dias_hasta_cosecha, pasado_tavg_7d, pasado_prcp_sum_7d,
-               pasado_radiacion_sum_7d, futuro_historico_tavg_7d,
-               futuro_historico_prcp_sum_7d, futuro_historico_radiacion_sum_7d
+               pasado_tavg_7d, pasado_tmin_7d, pasado_tmax_7d,
+               pasado_prcp_sum_7d, pasado_wspd_7d, pasado_radiacion_sum_7d,
+               pasado_dias_calor_7d, futuro_historico_tavg_7d,
+               futuro_historico_tmin_7d, futuro_historico_tmax_7d,
+               futuro_historico_prcp_sum_7d, futuro_historico_wspd_7d,
+               futuro_historico_radiacion_sum_7d, futuro_historico_dias_calor_7d,
+               dias_hasta_cosecha, fecha_cosecha_efectiva,
+               origen_registro, origen_clima, finca_id, cuartel_id
         FROM muestras_uva{where}
         ORDER BY fecha_medicion DESC, lote_id, numero_muestra
         LIMIT %s OFFSET %s
@@ -312,15 +323,16 @@ def get_samples(limit=100, offset=0, vendimia=None, variedad=None, vinedo=None,
     return frame, total
 
 
-def get_sample_summary():
+def get_sample_summary(bodega_id):
     with connect() as connection:
         initialize(connection)
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT vendimia, COUNT(*)::integer, COUNT(DISTINCT lote_id)::integer,
                        MIN(fecha_medicion), MAX(fecha_medicion)
-                FROM muestras_uva GROUP BY vendimia ORDER BY vendimia
-            """)
+                FROM muestras_uva WHERE bodega_id = %s
+                GROUP BY vendimia ORDER BY vendimia
+            """, (bodega_id,))
             by_vintage = [
                 {
                     "vendimia": row[0], "muestras": row[1], "lotes": row[2],
@@ -332,12 +344,12 @@ def get_sample_summary():
             cursor.execute("""
                 SELECT COUNT(*)::integer, COUNT(DISTINCT lote_id)::integer,
                        COUNT(*) FILTER (WHERE tipo_muestra = 'cosecha')::integer
-                FROM muestras_uva
-            """)
+                FROM muestras_uva WHERE bodega_id = %s
+            """, (bodega_id,))
             total, lots, harvests = cursor.fetchone()
-            cursor.execute("SELECT DISTINCT variedad FROM muestras_uva ORDER BY variedad")
+            cursor.execute("SELECT DISTINCT variedad FROM muestras_uva WHERE bodega_id = %s ORDER BY variedad", (bodega_id,))
             varieties = [row[0] for row in cursor.fetchall()]
-            cursor.execute("SELECT DISTINCT vinedo FROM muestras_uva ORDER BY vinedo")
+            cursor.execute("SELECT DISTINCT vinedo FROM muestras_uva WHERE bodega_id = %s ORDER BY vinedo", (bodega_id,))
             vineyards = [row[0] for row in cursor.fetchall()]
     return {
         "total_muestras": total,

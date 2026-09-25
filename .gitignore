@@ -9,9 +9,9 @@ venv/
 referencia_bodega/
 node_modules/
 *.tsbuildinfo
-clima/
+modelo_final/backend/.grapesense_secret
+modelo_final/backend/modelos/bodega_*/
+clima
 .codex
 .agents
-
-
-
+documentacion

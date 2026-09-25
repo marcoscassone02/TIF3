@@ -13,9 +13,10 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-ROOT = Path(__file__).resolve().parent
-MODEL_PATH = ROOT / "modelo_final.joblib"
-TRAIN_PATH = ROOT / "datos/entrenamiento_2022_2023.csv"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+ROOT = BACKEND_ROOT
+MODEL_PATH = BACKEND_ROOT / "modelos/base/modelo_final.joblib"
+TRAIN_PATH = BACKEND_ROOT / "datos/entrenamiento_2022_2023.csv"
 TARGET = "dias_hasta_cosecha"
 CATEGORICAL = ["variedad", "vinedo"]
 FEATURES = [
@@ -40,8 +41,8 @@ def read_csv(path, require_target=False):
     return data
 
 
-def load_artifact():
-    artifact = joblib.load(MODEL_PATH)
+def load_artifact(path=MODEL_PATH):
+    artifact = joblib.load(path)
     if artifact["columnas"] != FEATURES:
         raise ValueError("Las columnas del modelo guardado no coinciden con este código")
     return artifact
@@ -51,8 +52,8 @@ def predict(artifact, data):
     return np.maximum(artifact["model"].predict(data[FEATURES]), 0)
 
 
-def train():
-    data = read_csv(TRAIN_PATH, require_target=True)
+def fit_model(data, model_path, candidate="GB_depth3_trees100",
+              training_vintages=None, metadata=None):
     preprocessor = ColumnTransformer(
         [("categorias", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL)],
         remainder="passthrough",
@@ -67,21 +68,31 @@ def train():
         "model": model,
         "columnas": FEATURES,
         "escenario": "pasado_futuro_historico",
-        "candidato": "GB_depth3_trees100",
+        "candidato": candidate,
         "politica_prediccion": "max(0, prediccion)",
-        "entrenamiento_vendimias": [2022, 2023],
+        "entrenamiento_vendimias": training_vintages or sorted(
+            int(year) for year in data["vendimia"].unique()
+        ),
+        "muestras_entrenamiento": int(len(data)),
+        "lotes_entrenamiento": int(data.groupby(["vendimia", "lote_id"]).ngroups),
         "sklearn_version": sklearn.__version__,
     }
-    joblib.dump(artifact, MODEL_PATH)
-    print(f"Modelo entrenado con {len(data)} muestras y guardado en {MODEL_PATH}")
+    if metadata:
+        artifact.update(metadata)
+    joblib.dump(artifact, model_path)
+    print(f"Modelo entrenado con {len(data)} muestras y guardado en {model_path}")
+    return artifact
 
 
-def evaluate(path):
-    data = read_csv(path, require_target=True)
-    predicted = predict(load_artifact(), data)
+def train(train_path=TRAIN_PATH, model_path=MODEL_PATH,
+          candidate="GB_depth3_trees100", training_vintages=None):
+    data = read_csv(train_path, require_target=True)
+    return fit_model(data, model_path, candidate, training_vintages)
+
+
+def evaluation_metrics(data, predicted):
     error = predicted - data[TARGET].to_numpy()
-    result = {
-        "archivo": str(Path(path).resolve()),
+    return {
         "muestras": len(data),
         "mae_dias": float(mean_absolute_error(data[TARGET], predicted)),
         "rmse_dias": float(np.sqrt(mean_squared_error(data[TARGET], predicted))),
@@ -91,7 +102,18 @@ def evaluate(path):
         "error_maximo_dias": float(np.abs(error).max()),
         "r2": float(r2_score(data[TARGET], predicted)),
     }
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def evaluate(path, model_path=MODEL_PATH, show=True):
+    data = read_csv(path, require_target=True)
+    predicted = predict(load_artifact(model_path), data)
+    result = {
+        "archivo": str(Path(path).resolve()),
+        **evaluation_metrics(data, predicted),
+    }
+    if show:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
 
 
 def run_prediction(input_path, output_path, save_database=False, notes=""):
@@ -102,7 +124,7 @@ def run_prediction(input_path, output_path, save_database=False, notes=""):
     data.to_csv(output_path, index=False)
     print(f"Predicciones guardadas en {Path(output_path).resolve()}")
     if save_database:
-        from .base_datos import connect, initialize, save_predictions
+        from ..core.base_datos import connect, initialize, save_predictions
         version = artifact.get("version_datos", artifact.get("candidato", "modelo_final"))
         with connect() as connection:
             initialize(connection)
@@ -110,12 +132,16 @@ def run_prediction(input_path, output_path, save_database=False, notes=""):
 
 
 def predict_date(fecha, variedad, vinedo, brix, ph, acidez, lote_id=None,
-                 muestra_id=None, notas=""):
-    from .clima import obtain_climate
-    from .base_datos import connect, initialize, save_predictions
+                 muestra_id=None, notas="", bodega_id=None, finca_id=None,
+                 cuartel_id=None, latitude=None, longitude=None):
+    from ..services.clima import obtain_climate
+    from ..core.base_datos import connect, initialize, save_predictions
 
-    climate, metadata = obtain_climate(fecha, vinedo)
+    climate, metadata = obtain_climate(fecha, vinedo, latitude, longitude)
     row = {
+        "bodega_id": bodega_id,
+        "finca_id": finca_id,
+        "cuartel_id": cuartel_id,
         "muestra_id": muestra_id,
         "lote_id": lote_id,
         "vendimia": pd.Timestamp(fecha).year,
@@ -129,9 +155,11 @@ def predict_date(fecha, variedad, vinedo, brix, ph, acidez, lote_id=None,
         **metadata,
     }
     data = pd.DataFrame([row])
-    artifact = load_artifact()
+    artifact, registered_version = load_active_artifact(bodega_id)
     predicted = predict(artifact, data)
-    version = artifact.get("version_datos", artifact.get("candidato", "modelo_final"))
+    version = registered_version or artifact.get(
+        "version_datos", artifact.get("candidato", "modelo_final")
+    )
     with connect() as connection:
         initialize(connection)
         prediction_ids = save_predictions(connection, data, predicted, version, notas)
@@ -150,6 +178,27 @@ def predict_date(fecha, variedad, vinedo, brix, ph, acidez, lote_id=None,
     return result
 
 
+def load_active_artifact(bodega_id):
+    """Carga el modelo activo de la bodega; usa el modelo base como respaldo."""
+    if bodega_id is None:
+        artifact = load_artifact()
+        return artifact, artifact.get("candidato", "modelo_final")
+    from ..core.base_datos import connect
+    with connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT version, ruta_artefacto FROM modelos_bodega
+                WHERE bodega_id = %s AND activo
+                ORDER BY fecha_entrenamiento DESC NULLS LAST, modelo_bodega_id DESC
+                LIMIT 1
+            """, (bodega_id,))
+            row = cursor.fetchone()
+    if row and Path(row[1]).exists():
+        return load_artifact(Path(row[1])), row[0]
+    artifact = load_artifact()
+    return artifact, artifact.get("candidato", "modelo_final")
+
+
 def run_date_prediction(args):
     result = predict_date(
         args.fecha, args.variedad, args.vinedo, args.brix, args.ph, args.acidez,
@@ -164,6 +213,7 @@ def main():
     commands.add_parser("entrenar", help="Reentrena con datos/entrenamiento_2022_2023.csv")
     evaluate_parser = commands.add_parser("evaluar", help="Evalúa un CSV que incluya el objetivo")
     evaluate_parser.add_argument("csv")
+    evaluate_parser.add_argument("--modelo", default=str(MODEL_PATH))
     predict_parser = commands.add_parser("predecir", help="Predice un CSV con las 19 entradas")
     predict_parser.add_argument("entrada")
     predict_parser.add_argument("salida")
@@ -186,7 +236,7 @@ def main():
     if args.command == "entrenar":
         train()
     elif args.command == "evaluar":
-        evaluate(args.csv)
+        evaluate(args.csv, args.modelo)
     elif args.command == "predecir":
         run_prediction(args.entrada, args.salida, args.guardar_db, args.notas)
     else:

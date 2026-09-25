@@ -35,13 +35,16 @@ def summarize(window):
     }
 
 
-def obtain_climate(prediction_date, site):
+def obtain_climate(prediction_date, site, latitude=None, longitude=None):
     prediction_date = pd.Timestamp(prediction_date).date()
     if prediction_date > date.today():
         raise ValueError("La fecha de medición no puede estar en el futuro")
-    if site not in SITES:
+    if latitude is None or longitude is None:
+        if site not in SITES:
+            raise ValueError(f"Viñedo desconocido. Opciones: {', '.join(SITES)}")
+        latitude, longitude = SITES[site]
+    if not (-90 <= float(latitude) <= 90 and -180 <= float(longitude) <= 180):
         raise ValueError(f"Viñedo desconocido. Opciones: {', '.join(SITES)}")
-    latitude, longitude = SITES[site]
     start = prediction_date - timedelta(days=7)
     end = prediction_date + timedelta(days=6)
     # ERA5 suele publicarse con demora. Para una predicción reciente se usa la

@@ -1,10 +1,10 @@
 """Información interpretable del modelo para la vista del enólogo."""
-from functools import lru_cache
-
 import numpy as np
+import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from .modelo import FEATURES, TARGET, load_artifact, predict, read_csv, ROOT
+from ..core.base_datos import connect
+from .modelo import FEATURES, TARGET, MODEL_PATH, load_artifact, predict, read_csv, ROOT
 
 LABELS = {
     "variedad": "Variedad",
@@ -61,15 +61,48 @@ def metrics(actual, predicted):
     }
 
 
-@lru_cache(maxsize=1)
-def model_analysis():
-    artifact = load_artifact()
+def model_analysis(bodega_id):
+    with connect() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT mb.nombre, mb.version, mb.ruta_artefacto, b.nombre
+                FROM modelos_bodega mb JOIN bodegas b ON b.bodega_id = mb.bodega_id
+                WHERE mb.bodega_id = %s AND mb.activo
+                ORDER BY mb.fecha_entrenamiento DESC NULLS LAST, mb.modelo_bodega_id DESC
+                LIMIT 1
+            """, (bodega_id,))
+            registered = cursor.fetchone()
+    if registered:
+        model_name, registered_version, path, winery_name = registered
+        try:
+            artifact = load_artifact(path)
+        except FileNotFoundError:
+            artifact = load_artifact(MODEL_PATH)
+            model_name, registered_version = "Modelo base regional", artifact.get("candidato", "modelo_final")
+    else:
+        artifact = load_artifact(MODEL_PATH)
+        model_name, registered_version, winery_name = "Modelo base regional", artifact.get("candidato", "modelo_final"), "Bodega"
+
     pipeline = artifact["model"]
-    evaluation = read_csv(ROOT / "datos/evaluacion_2024.csv", require_target=True)
-    training = read_csv(ROOT / "datos/entrenamiento_2022_2023.csv", require_target=True)
-    evaluation_2026 = read_csv(ROOT / "datos/evaluacion_2026_sintetica.csv", require_target=True)
+    snapshot = artifact.get("evaluacion_snapshot")
+    if snapshot:
+        evaluation = pd.DataFrame(snapshot)
+        training_count = int(artifact.get("muestras_entrenamiento", 0))
+        evaluation_label = "Vendimias " + " y ".join(
+            map(str, artifact.get("vendimias_evaluacion", sorted(evaluation["vendimia"].unique())))
+        )
+        evaluation_lots = int(artifact.get(
+            "lotes_evaluacion", evaluation.groupby(["vendimia", "lote_id"]).ngroups
+        ))
+        data_origin = "Base PostgreSQL de la bodega"
+    else:
+        evaluation = read_csv(ROOT / "datos/evaluacion_2024.csv", require_target=True)
+        training = read_csv(ROOT / "datos/entrenamiento_2022_2023.csv", require_target=True)
+        training_count = int(len(training))
+        evaluation_label = "Vendimia 2024"
+        evaluation_lots = int(evaluation["lote_id"].nunique())
+        data_origin = "Sintético"
     predicted = predict(artifact, evaluation)
-    predicted_2026 = predict(artifact, evaluation_2026)
 
     transformed = pipeline.named_steps["pre"].get_feature_names_out()
     raw_importance = pipeline.named_steps["reg"].feature_importances_
@@ -99,42 +132,46 @@ def model_analysis():
         if mask.any():
             horizon_rows.append({"rango": label, **metrics(actual[mask], predicted[mask])})
 
+    comparison = [
+        {
+            "real": round(float(real), 2),
+            "predicho": round(float(estimate), 2),
+            "error_absoluto": round(abs(float(estimate - real)), 2),
+        }
+        for real, estimate in zip(actual, predicted)
+    ]
+    main_metrics = metrics(actual, predicted)
     return {
         "modelo": {
+            "nombre": model_name,
             "algoritmo": "Gradient Boosting Regressor",
-            "version": artifact.get("candidato", "modelo_final"),
+            "version": registered_version,
+            "bodega": winery_name,
             "objetivo": "Días restantes hasta la cosecha efectiva",
             "variables": len(FEATURES),
             "vendimias_entrenamiento": artifact.get("entrenamiento_vendimias", [2022, 2023]),
         },
         "datos": {
-            "entrenamiento_muestras": int(len(training)),
-            "evaluacion_2024_muestras": int(len(evaluation)),
-            "evaluacion_2026_muestras": int(len(evaluation_2026)),
-            "origen_uva": "Sintético",
+            "entrenamiento_muestras": training_count,
+            "evaluacion_muestras": int(len(evaluation)),
+            "evaluacion_lotes": evaluation_lots,
+            "evaluacion_etiqueta": evaluation_label,
+            "origen_uva": data_origin,
             "origen_clima": "Histórico reconstruido por Open-Meteo / ERA5",
         },
-        "evaluacion_2024": metrics(actual, predicted),
-        "evaluacion_2026_sintetica": metrics(
-            evaluation_2026[TARGET].to_numpy(dtype=float), predicted_2026
-        ),
+        "evaluacion": main_metrics,
+        "evaluacion_2024": main_metrics,
         "rendimiento_por_anticipacion": horizon_rows,
         "importancia_variables": importances,
         "importancia_grupos": [
             {"grupo": key, "importancia_porcentaje": round(value, 2)}
             for key, value in sorted(group_values.items(), key=lambda item: item[1], reverse=True)
         ],
-        "comparacion_2024": [
-            {
-                "real": round(float(real), 2),
-                "predicho": round(float(estimate), 2),
-                "error_absoluto": round(abs(float(estimate - real)), 2),
-            }
-            for real, estimate in zip(actual, predicted)
-        ],
+        "comparacion": comparison,
+        "comparacion_2024": comparison,
         "advertencias": [
-            "Las mediciones de uva y las fechas de cosecha usadas para entrenar son sintéticas.",
-            "La evaluación 2024 es una separación temporal, pero pertenece al mismo generador sintético.",
+            "La calidad de la evaluación depende de la cantidad de lotes y de que las cosechas efectivas estén correctamente registradas.",
+            "Los lotes de evaluación se mantienen separados de los lotes de entrenamiento.",
             "La importancia describe cuánto usa el modelo una variable; no demuestra causalidad agronómica.",
             "En operación, los siete días futuros son pronósticos y pueden cambiar después de la predicción.",
             "La decisión final debe combinar el resultado con inspección visual, sanidad y criterio enológico.",
