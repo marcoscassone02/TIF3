@@ -124,6 +124,17 @@ export type ModelReadiness = {
   vendimias_evaluacion?: number[]
 }
 
+export type TrainingJob = {
+  entrenamiento_id: number
+  bodega_id: number
+  estado: 'pendiente' | 'entrenando' | 'completado' | 'error'
+  modelo_bodega_id: number | null
+  mensaje_error: string | null
+  fecha_solicitud: string
+  fecha_inicio: string | null
+  fecha_fin: string | null
+}
+
 export type SampleFilters = {
   vendimia?: string
   variedad?: string
@@ -152,6 +163,7 @@ export type SampleImportResult = {
   omitidas: number
   fechas_climaticas_consultadas: number
   fechas_con_pronostico: number
+  objetivos_cosecha_completados: number
 }
 
 export type Followup = {

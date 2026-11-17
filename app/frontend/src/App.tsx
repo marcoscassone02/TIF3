@@ -15,7 +15,8 @@ import { ChartPanel, DetailSection, EmptyData, Field, PanelHeading, Recent, Sear
 import { downloadRows, formatDate, roleLabel, today } from './lib/format'
 import type {
   AppOptions, Followup, ModelAnalysis, ModelReadiness, Organization, Prediction, PredictionInput,
-  PredictionResult, Sample, SampleFilters, SampleImportResult, SampleSummary, Summary, User, View,
+  PredictionResult, Sample, SampleFilters, SampleImportResult, SampleSummary, Summary, TrainingJob,
+  User, View,
 } from './types'
 
 const initialForm: PredictionInput = {
@@ -294,9 +295,12 @@ function ImportSamples({ options, onImported }: { options: AppOptions | null; on
 
   function downloadTemplate() {
     const header = ['muestra_id', 'lote_id', 'vendimia', 'fecha_medicion', 'tipo_muestra', 'numero_muestra', 'variedad', 'Brix', 'pH', 'acidez_total_g_l', 'fecha_cosecha_efectiva', 'dias_hasta_cosecha']
-    const example = ['M-2026-001', 'LOTE-01', '2026', '2026-02-05', 'seguimiento', '1', 'Malbec', '17.4', '3.18', '8.2', '2026-03-03', '26']
+    const examples = [
+      ['M-2026-001', 'LOTE-01', '2026', '2026-02-05', 'seguimiento', '1', 'Malbec', '17.4', '3.18', '8.2', '', ''],
+      ['M-2026-002', 'LOTE-01', '2026', '2026-03-03', 'cosecha', '2', 'Malbec', '24.1', '3.52', '5.1', '', ''],
+    ]
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([`${header.join(',')}\n${example.join(',')}\n`], { type: 'text/csv;charset=utf-8' }))
+    link.href = URL.createObjectURL(new Blob([`${header.join(',')}\n${examples.map((row) => row.join(',')).join('\n')}\n`], { type: 'text/csv;charset=utf-8' }))
     link.download = 'plantilla_muestras_grapesense.csv'; link.click(); URL.revokeObjectURL(link.href)
   }
   async function chooseFile(file?: File) {
@@ -321,7 +325,7 @@ function ImportSamples({ options, onImported }: { options: AppOptions | null; on
       {filename && <div className="file-ready"><CheckCircle2 size={18} /><span><strong>{filename}</strong>{rowCount} filas detectadas · máximo 250 por carga</span></div>}
       <label className="check-row"><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /><span><strong>Actualizar coincidencias existentes</strong><small>Busca por ID de muestra o por lote, vendimia y fecha. Si no se activa, las coincidencias se omiten.</small></span></label>
       {error && <div className="alert error import-error"><AlertTriangle size={18} /><span>{error}</span></div>}
-      {result && <div className="import-result"><CheckCircle2 /><div><strong>Importación completada</strong><p>{result.insertadas} insertadas · {result.actualizadas} actualizadas · {result.omitidas} omitidas.</p>{result.fechas_con_pronostico > 0 && <small>{result.fechas_con_pronostico} fechas recientes usaron pronóstico operativo; conviene actualizarlas cuando el período sea histórico.</small>}</div></div>}
+      {result && <div className="import-result"><CheckCircle2 /><div><strong>Importación completada</strong><p>{result.insertadas} insertadas · {result.actualizadas} actualizadas · {result.omitidas} omitidas.</p>{result.objetivos_cosecha_completados > 0 && <small>Se completaron fecha de cosecha y días restantes en {result.objetivos_cosecha_completados} mediciones.</small>}{result.fechas_con_pronostico > 0 && <small>{result.fechas_con_pronostico} fechas recientes usaron pronóstico operativo; conviene actualizarlas cuando el período sea histórico.</small>}</div></div>}
       <button className="primary-button" type="submit" disabled={busy || !csvText || !fincaId}>{busy ? <LoaderCircle className="spin" /> : <Upload size={18} />}{busy ? 'Validando y consultando clima...' : `Importar ${rowCount || ''} muestras`}</button>
     </form>}
   </section>
@@ -423,6 +427,7 @@ function ModelPage({ analysis }: { analysis: ModelAnalysis | null }) {
 function AdminPage({ user, refreshOptions, onModelChanged }: { user: User; refreshOptions: () => Promise<void>; onModelChanged: () => void }) {
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [modelReadiness, setModelReadiness] = useState<ModelReadiness | null>(null)
+  const [trainingJob, setTrainingJob] = useState<TrainingJob | null>(null)
   const [wineries, setWineries] = useState<{ bodega_id: number; nombre: string; slug: string; activa: boolean; usuarios: number; fincas: number }[]>([])
   const [farm, setFarm] = useState({ nombre: '', latitud: -33.0, longitud: -68.85 })
   const [member, setMember] = useState({ nombre: '', email: '', password: '', rol: 'usuario' })
@@ -435,15 +440,24 @@ function AdminPage({ user, refreshOptions, onModelChanged }: { user: User; refre
 
   const load = useCallback(async () => {
     try {
-      const [current, readiness] = await Promise.all([api.getOrganization(), api.getModelReadiness()])
+      const [current, readiness, training] = await Promise.all([
+        api.getOrganization(), api.getModelReadiness(), api.getLatestTraining(),
+      ])
       setOrganization(current)
       setModelReadiness(readiness)
+      setTrainingJob(training.entrenamiento)
       if (user.rol === 'superadmin') setWineries((await api.getWineries()).items)
       setError('')
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'No se pudo cargar la administración') }
   }, [user.rol])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (!trainingJob || !['pendiente', 'entrenando'].includes(trainingJob.estado)) return
+    const interval = window.setInterval(() => { void load() }, 2500)
+    return () => window.clearInterval(interval)
+  }, [trainingJob, load])
 
   async function run(name: string, action: () => Promise<unknown>, success: string) {
     setBusy(name); setError(''); setNotice('')
@@ -489,8 +503,14 @@ function AdminPage({ user, refreshOptions, onModelChanged }: { user: User; refre
 
   async function trainModel() {
     if (!window.confirm(`¿Entrenar un nuevo modelo candidato para ${organization?.bodega.nombre ?? user.bodega_nombre}?\n\nGrapeSense dividirá automáticamente los lotes y no reemplazará el modelo activo.`)) return
-    const ok = await run('train-model', () => api.trainModel(), 'El nuevo modelo candidato fue entrenado y quedó pendiente de revisión.')
-    if (ok) onModelChanged()
+    setBusy('train-model'); setError(''); setNotice('')
+    try {
+      const job = await api.trainModel()
+      setTrainingJob(job)
+      setNotice('El entrenamiento quedó en cola. Puedes seguir usando la aplicación mientras se procesa.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'No se pudo iniciar el entrenamiento')
+    } finally { setBusy('') }
   }
 
   async function activateModel(item: Organization['modelos'][number]) {
@@ -520,7 +540,8 @@ function AdminPage({ user, refreshOptions, onModelChanged }: { user: User; refre
       <section className="panel admin-panel model-management"><PanelHeading icon={<Microscope size={20} />} title="Modelos de la bodega" subtitle="Entrenamiento centralizado desde PostgreSQL" />
         {modelReadiness && <div className="training-summary"><div><small>Muestras utilizables</small><strong>{modelReadiness.muestras}</strong></div><div><small>Lotes completos</small><strong>{modelReadiness.lotes}</strong></div><div><small>Vendimias</small><strong>{modelReadiness.vendimias.join(', ') || '—'}</strong></div></div>}
         {modelReadiness?.puede_entrenar ? <div className="split-preview"><strong>División automática</strong><p>{modelReadiness.politica}.</p><small>{modelReadiness.entrenamiento_muestras} mediciones para entrenar · {modelReadiness.evaluacion_muestras} para evaluar · sin compartir lotes.</small></div> : <div className="split-preview unavailable"><strong>Entrenamiento no disponible</strong><p>{modelReadiness?.motivo ?? 'Revisando los datos disponibles.'}</p></div>}
-        {user.rol === 'superadmin' && <button className="secondary-button train-button" disabled={busy !== '' || !modelReadiness?.puede_entrenar} onClick={() => void trainModel()}>{busy === 'train-model' ? <LoaderCircle className="spin" size={17} /> : <Database size={17} />}{busy === 'train-model' ? 'Entrenando...' : 'Entrenar desde PostgreSQL'}</button>}
+        {trainingJob && <div className={`split-preview ${trainingJob.estado === 'error' ? 'unavailable' : ''}`}><strong>Último entrenamiento: {trainingJob.estado === 'pendiente' ? 'pendiente' : trainingJob.estado === 'entrenando' ? 'entrenando' : trainingJob.estado === 'completado' ? 'candidato generado' : 'error'}</strong><p>{trainingJob.estado === 'pendiente' ? 'El trabajo está esperando para comenzar.' : trainingJob.estado === 'entrenando' ? 'GrapeSense está entrenando y evaluando el modelo en segundo plano.' : trainingJob.estado === 'completado' ? 'El modelo quedó disponible para revisar y activar.' : trainingJob.mensaje_error || 'El entrenamiento no pudo completarse.'}</p></div>}
+        {user.rol === 'superadmin' && <button className="secondary-button train-button" disabled={busy !== '' || !modelReadiness?.puede_entrenar || trainingJob?.estado === 'pendiente' || trainingJob?.estado === 'entrenando'} onClick={() => void trainModel()}>{busy === 'train-model' || trainingJob?.estado === 'entrenando' ? <LoaderCircle className="spin" size={17} /> : <Database size={17} />}{trainingJob?.estado === 'pendiente' ? 'Entrenamiento pendiente' : trainingJob?.estado === 'entrenando' ? 'Entrenando en segundo plano' : 'Entrenar desde PostgreSQL'}</button>}
         <div className="compact-list model-list">{organization?.modelos.map((item) => <div key={item.modelo_bodega_id}><Microscope size={17} /><span><strong>{item.nombre}</strong><small>Versión {item.version} · vendimias {item.vendimias_entrenamiento || 'sin registrar'}</small>{item.metricas?.fuente_entrenamiento && <small>Origen: {item.metricas.fuente_entrenamiento}</small>}{item.metricas && <small>MAE {Number(item.metricas.mae_dias).toFixed(2)} días · ±4 días {Number(item.metricas.dentro_4_dias_porcentaje).toFixed(1)}%</small>}</span><div className="model-actions"><b className={item.activo ? 'active-model' : ''}>{item.activo ? 'Activo' : 'Candidato'}</b>{user.rol === 'superadmin' && !item.activo && <button className="text-button" disabled={busy === 'activate-model'} onClick={() => void activateModel(item)}>Activar</button>}</div></div>)}</div><p className="admin-help"><Info size={17} /> El entrenamiento usa exclusivamente los lotes cosechados guardados en muestras_uva y nunca activa el resultado automáticamente. Sólo el administrador de plataforma puede entrenar o activar modelos.</p>
       </section>
     </div>

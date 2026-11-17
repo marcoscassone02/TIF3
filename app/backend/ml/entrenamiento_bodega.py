@@ -201,6 +201,90 @@ def train_winery_model(connection, bodega_id, model_name=None):
     return _train_candidate(connection, bodega_id, data, model_name)
 
 
+def create_training_job(connection, bodega_id, user_id):
+    """Registra un entrenamiento sin bloquear la petición web."""
+    readiness_state = readiness(connection, bodega_id)
+    if not readiness_state["puede_entrenar"]:
+        raise ValueError(readiness_state["motivo"] or "Los datos todavía no permiten entrenar")
+    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("""
+            SELECT entrenamiento_id FROM entrenamientos_modelo
+            WHERE bodega_id = %s AND estado IN ('pendiente', 'entrenando')
+            ORDER BY fecha_solicitud DESC LIMIT 1
+        """, (bodega_id,))
+        if cursor.fetchone() is not None:
+            raise ValueError("Ya existe un entrenamiento en curso para esta bodega")
+        cursor.execute("""
+            INSERT INTO entrenamientos_modelo (bodega_id, solicitado_por, estado)
+            VALUES (%s, %s, 'pendiente')
+            ON CONFLICT DO NOTHING
+            RETURNING entrenamiento_id, bodega_id, estado, modelo_bodega_id,
+                      mensaje_error, fecha_solicitud, fecha_inicio, fecha_fin
+        """, (bodega_id, user_id))
+        job = cursor.fetchone()
+        if job is None:
+            raise ValueError("Ya existe un entrenamiento en curso para esta bodega")
+    connection.commit()
+    return dict(job)
+
+
+def get_latest_training_job(connection, bodega_id):
+    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute("""
+            SELECT entrenamiento_id, bodega_id, estado, modelo_bodega_id,
+                   mensaje_error, fecha_solicitud, fecha_inicio, fecha_fin
+            FROM entrenamientos_modelo
+            WHERE bodega_id = %s
+            ORDER BY fecha_solicitud DESC LIMIT 1
+        """, (bodega_id,))
+        job = cursor.fetchone()
+    return dict(job) if job else None
+
+
+def run_training_job(job_id):
+    """Ejecuta un trabajo registrado usando una conexión independiente."""
+    from ..core.base_datos import connect, initialize
+    from ..core.multiempresa import initialize_multitenancy
+
+    try:
+        with connect() as connection:
+            initialize(connection)
+            initialize_multitenancy(connection)
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    UPDATE entrenamientos_modelo
+                    SET estado = 'entrenando', fecha_inicio = NOW(), mensaje_error = NULL
+                    WHERE entrenamiento_id = %s AND estado = 'pendiente'
+                    RETURNING bodega_id
+                """, (job_id,))
+                job = cursor.fetchone()
+            connection.commit()
+            if job is None:
+                return
+            model = train_winery_model(connection, job["bodega_id"])
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE entrenamientos_modelo
+                    SET estado = 'completado', modelo_bodega_id = %s, fecha_fin = NOW()
+                    WHERE entrenamiento_id = %s
+                """, (model["modelo_bodega_id"], job_id))
+            connection.commit()
+    except Exception as error:
+        try:
+            with connect() as connection:
+                initialize(connection)
+                initialize_multitenancy(connection)
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE entrenamientos_modelo
+                        SET estado = 'error', mensaje_error = %s, fecha_fin = NOW()
+                        WHERE entrenamiento_id = %s
+                    """, (str(error)[:2000], job_id))
+                connection.commit()
+        except Exception:
+            pass
+
+
 def activate_model(connection, bodega_id, model_id):
     with connection.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute("""

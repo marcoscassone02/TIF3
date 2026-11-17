@@ -85,6 +85,8 @@ def validate_rows(frame):
                 raise ValueError("Brix, pH o acidez fuera de los rangos admitidos")
             harvest_text = str(raw["fecha_cosecha_efectiva"]).strip()
             harvest = pd.to_datetime(harvest_text, errors="raise").date() if harvest_text else None
+            if harvest is not None and harvest > date.today():
+                raise ValueError("fecha_cosecha_efectiva no puede estar en el futuro")
             days_text = str(raw["dias_hasta_cosecha"]).strip()
             days = int(float(days_text.replace(",", "."))) if days_text else None
             if harvest is not None:
@@ -114,6 +116,53 @@ def validate_rows(frame):
         if len(errors) > len(preview):
             preview.append(f"... y {len(errors) - len(preview)} errores más")
         raise ValueError("\n".join(preview))
+    return complete_harvest_targets(rows)
+
+
+def complete_harvest_targets(rows):
+    """Propaga la cosecha final a todas las mediciones del mismo lote y vendimia."""
+    groups = {}
+    for row in rows:
+        key = (row["lote_id"].strip().lower(), row["vendimia"])
+        groups.setdefault(key, []).append(row)
+
+    for (_, vintage), samples in groups.items():
+        harvest_samples = [sample for sample in samples if sample["tipo_muestra"] == "cosecha"]
+        if len(harvest_samples) > 1:
+            raise ValueError(
+                f"El lote {samples[0]['lote_id']} de {vintage} tiene más de una muestra de cosecha"
+            )
+        explicit_dates = {
+            sample["fecha_cosecha_efectiva"]
+            for sample in samples
+            if sample["fecha_cosecha_efectiva"] is not None
+        }
+        if harvest_samples:
+            explicit_dates.add(harvest_samples[0]["fecha_medicion"])
+        if len(explicit_dates) > 1:
+            raise ValueError(
+                f"El lote {samples[0]['lote_id']} de {vintage} tiene fechas de cosecha incompatibles"
+            )
+        if not explicit_dates:
+            continue
+
+        harvest_date = explicit_dates.pop()
+        if harvest_date > date.today():
+            raise ValueError(
+                f"La cosecha del lote {samples[0]['lote_id']} de {vintage} no puede estar en el futuro"
+            )
+        for sample in samples:
+            days = (harvest_date - sample["fecha_medicion"]).days
+            if days < 0:
+                raise ValueError(
+                    f"El lote {sample['lote_id']} de {vintage} contiene una medición posterior a la cosecha"
+                )
+            if sample["dias_hasta_cosecha"] is not None and sample["dias_hasta_cosecha"] != days:
+                raise ValueError(
+                    f"dias_hasta_cosecha no coincide con la cosecha del lote {sample['lote_id']} de {vintage}"
+                )
+            sample["fecha_cosecha_efectiva"] = harvest_date
+            sample["dias_hasta_cosecha"] = days
     return rows
 
 
@@ -149,7 +198,7 @@ def import_samples(connection, *, bodega_id, finca_id, cuartel_id, csv_text, ove
         )
         climate_by_date[measurement] = (features, metadata)
 
-    inserted = updated = skipped = 0
+    inserted = updated = skipped = completed_targets = 0
     with connection.cursor() as cursor:
         for row in rows:
             features, metadata = climate_by_date[row["fecha_medicion"]]
@@ -187,10 +236,45 @@ def import_samples(connection, *, bodega_id, finca_id, cuartel_id, csv_text, ove
                 sql = f"INSERT INTO muestras_uva ({', '.join(quoted)}) VALUES ({placeholders})"
                 inserted += 1
             cursor.execute(sql, [values[column] for column in columns])
+
+        harvest_targets = {
+            (row["lote_id"], row["vendimia"], row["fecha_cosecha_efectiva"])
+            for row in rows if row["fecha_cosecha_efectiva"] is not None
+        }
+        for lot_id, vintage, harvest_date in harvest_targets:
+            cursor.execute("""
+                SELECT fecha_medicion FROM muestras_uva
+                WHERE bodega_id = %s AND LOWER(lote_id) = LOWER(%s) AND vendimia = %s
+                  AND fecha_medicion > %s
+                LIMIT 1
+            """, (bodega_id, lot_id, vintage, harvest_date))
+            if cursor.fetchone() is not None:
+                raise ValueError(
+                    f"El lote {lot_id} de {vintage} tiene mediciones posteriores a la cosecha"
+                )
+            cursor.execute("""
+                SELECT DISTINCT fecha_medicion FROM muestras_uva
+                WHERE bodega_id = %s AND LOWER(lote_id) = LOWER(%s) AND vendimia = %s
+                  AND tipo_muestra = 'cosecha'
+            """, (bodega_id, lot_id, vintage))
+            harvest_rows = {item[0] for item in cursor.fetchall()}
+            if len(harvest_rows) > 1 or (harvest_rows and harvest_date not in harvest_rows):
+                raise ValueError(
+                    f"El lote {lot_id} de {vintage} tiene más de una fecha final de cosecha"
+                )
+            cursor.execute("""
+                UPDATE muestras_uva
+                SET fecha_cosecha_efectiva = %s,
+                    dias_hasta_cosecha = %s::date - fecha_medicion,
+                    fecha_actualizacion = NOW()
+                WHERE bodega_id = %s AND LOWER(lote_id) = LOWER(%s) AND vendimia = %s
+            """, (harvest_date, harvest_date, bodega_id, lot_id, vintage))
+            completed_targets += cursor.rowcount
     connection.commit()
     recent = sum(1 for _, metadata in climate_by_date.values() if "pronóstico" in metadata["origen_clima"].lower())
     return {
         "filas_recibidas": len(rows), "insertadas": inserted, "actualizadas": updated,
         "omitidas": skipped, "fechas_climaticas_consultadas": len(climate_by_date),
         "fechas_con_pronostico": recent,
+        "objetivos_cosecha_completados": completed_targets,
     }

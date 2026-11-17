@@ -1,8 +1,8 @@
 # Despliegue de GrapeSense en Render
 
-> **Estado:** configuración preparada y validada contra la especificación de
-> Blueprints de Render en octubre de 2026. Todavía no se creó ningún recurso ni
-> se realizó el despliegue.
+> **Estado:** GrapeSense se encuentra desplegado en Render. Esta guía documenta
+> la configuración de producción y los pasos necesarios para verificar,
+> mantener o recrear el entorno.
 
 Esta guía publica una sola instalación multiempresa compuesta por:
 
@@ -12,9 +12,9 @@ Esta guía publica una sola instalación multiempresa compuesta por:
 
 La infraestructura se describe en `render.yaml`. No se deben copiar contraseñas ni URLs privadas dentro del repositorio.
 
-## Recursos previstos y costos
+## Recursos de producción y costos
 
-El Blueprint solicita:
+El Blueprint define:
 
 - servicio web Docker `0.5c-512mb`;
 - PostgreSQL `0.1c-256mb` con 1 GB inicial;

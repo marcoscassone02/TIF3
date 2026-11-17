@@ -7,7 +7,7 @@ import os
 
 import pandas as pd
 import psycopg2
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +24,10 @@ from .core.base_datos import (
 from .ml.modelo import MODEL_PATH, predict_date
 from .services.importacion_muestras import import_samples
 from .services.gestion_muestras import delete_sample, update_sample
-from .ml.entrenamiento_bodega import activate_model, readiness, train_winery_model
+from .ml.entrenamiento_bodega import (
+    activate_model, create_training_job, get_latest_training_job, readiness,
+    run_training_job,
+)
 from .services.seguimientos import (
     add_measurement, close_followup, create_followup, delete_followup,
     list_followups, update_followup,
@@ -524,14 +527,23 @@ def model_readiness(user: AdminUser):
         return readiness(connection, user.bodega_id)
 
 
-@app.post("/api/admin/models/train", status_code=201)
-def train_model(user: PlatformAdmin):
+@app.post("/api/admin/models/train", status_code=202)
+def train_model(background_tasks: BackgroundTasks, user: PlatformAdmin):
     try:
         with connect() as connection:
             prepare(connection)
-            return train_winery_model(connection, user.bodega_id)
+            job = create_training_job(connection, user.bodega_id, user.usuario_id)
+        background_tasks.add_task(run_training_job, job["entrenamiento_id"])
+        return job
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.get("/api/admin/models/training/latest")
+def latest_training(user: AdminUser):
+    with connect() as connection:
+        prepare(connection)
+        return {"entrenamiento": get_latest_training_job(connection, user.bodega_id)}
 
 
 @app.post("/api/admin/models/{model_id}/activate")

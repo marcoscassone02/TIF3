@@ -13,6 +13,7 @@ import type {
   SampleImportResult,
   SampleSummary,
   Summary,
+  TrainingJob,
   User,
 } from './types'
 
@@ -93,7 +94,8 @@ export const api = {
   getModelAnalysis: () => request<ModelAnalysis>('/api/model/analysis'),
   getOrganization: () => request<Organization>('/api/admin/organization'),
   getModelReadiness: () => request<ModelReadiness>('/api/admin/models/readiness'),
-  trainModel: () => request('/api/admin/models/train', { method: 'POST' }),
+  trainModel: () => request<TrainingJob>('/api/admin/models/train', { method: 'POST' }),
+  getLatestTraining: () => request<{ entrenamiento: TrainingJob | null }>('/api/admin/models/training/latest'),
   activateModel: (id: number) => request(`/api/admin/models/${id}/activate`, { method: 'POST' }),
   createFarm: (data: { nombre: string; latitud: number; longitud: number }) =>
     request<Farm>('/api/admin/farms', { method: 'POST', body: JSON.stringify(data) }),

@@ -76,6 +76,19 @@ CREATE TABLE IF NOT EXISTS modelos_bodega (
     UNIQUE (bodega_id, version)
 );
 
+CREATE TABLE IF NOT EXISTS entrenamientos_modelo (
+    entrenamiento_id BIGSERIAL PRIMARY KEY,
+    bodega_id BIGINT NOT NULL REFERENCES bodegas(bodega_id),
+    solicitado_por BIGINT REFERENCES usuarios(usuario_id),
+    estado TEXT NOT NULL DEFAULT 'pendiente'
+        CHECK (estado IN ('pendiente', 'entrenando', 'completado', 'error')),
+    modelo_bodega_id BIGINT REFERENCES modelos_bodega(modelo_bodega_id),
+    mensaje_error TEXT,
+    fecha_solicitud TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    fecha_inicio TIMESTAMPTZ,
+    fecha_fin TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS seguimientos_uva (
     seguimiento_id BIGSERIAL PRIMARY KEY,
     bodega_id BIGINT NOT NULL REFERENCES bodegas(bodega_id),
@@ -112,6 +125,11 @@ CREATE INDEX IF NOT EXISTS predicciones_uva_bodega_fecha_idx ON predicciones_uva
 CREATE INDEX IF NOT EXISTS fincas_bodega_idx ON fincas (bodega_id);
 CREATE INDEX IF NOT EXISTS cuarteles_bodega_idx ON cuarteles (bodega_id);
 CREATE INDEX IF NOT EXISTS usuarios_bodega_idx ON usuarios (bodega_id);
+CREATE INDEX IF NOT EXISTS entrenamientos_modelo_bodega_fecha_idx
+    ON entrenamientos_modelo (bodega_id, fecha_solicitud DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS entrenamientos_modelo_unico_en_curso_idx
+    ON entrenamientos_modelo (bodega_id)
+    WHERE estado IN ('pendiente', 'entrenando');
 """
 
 
