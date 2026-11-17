@@ -1,5 +1,9 @@
 # Despliegue de GrapeSense en Render
 
+> **Estado:** configuración preparada y validada contra la especificación de
+> Blueprints de Render en octubre de 2026. Todavía no se creó ningún recurso ni
+> se realizó el despliegue.
+
 Esta guía publica una sola instalación multiempresa compuesta por:
 
 - un servicio web Docker con React y FastAPI;
@@ -7,6 +11,41 @@ Esta guía publica una sola instalación multiempresa compuesta por:
 - un disco persistente para los modelos entrenados por bodega.
 
 La infraestructura se describe en `render.yaml`. No se deben copiar contraseñas ni URLs privadas dentro del repositorio.
+
+## Recursos previstos y costos
+
+El Blueprint solicita:
+
+- servicio web Docker `0.5c-512mb`;
+- PostgreSQL `0.1c-256mb` con 1 GB inicial;
+- disco persistente de 1 GB para los modelos.
+
+El disco persistente sólo está disponible para servicios web pagos. Antes de
+crear el Blueprint se deben revisar los precios vigentes en Render; este
+repositorio no crea recursos ni inicia facturación por sí mismo. La
+[referencia oficial de Blueprints](https://render.com/docs/blueprint-spec) define
+los identificadores de planes y la [documentación de discos](https://render.com/docs/disks)
+explica sus restricciones.
+
+El disco queda asociado a una única instancia del servicio y evita despliegues
+sin interrupción. Durante una actualización puede existir una pausa breve hasta
+que la nueva instancia supere el control de salud.
+
+## 0. Verificación previa
+
+Desde la raíz del repositorio:
+
+```bash
+./scripts/verificar_proyecto.sh
+```
+
+Confirmar además que el repositorio no contenga `.env`, respaldos, secretos ni
+modelos particulares de una bodega:
+
+```bash
+git status --short
+git ls-files | grep -E '(^|/)(\.env|backups|\.grapesense_secret|modelos/bodega_)' || true
+```
 
 ## 1. Publicar el código en GitHub
 
@@ -33,6 +72,9 @@ Los archivos `.env`, el secreto local, los modelos generados y la carpeta `venv`
 6. Confirmar la creación.
 
 El primer despliegue construye React, instala Python, inicia FastAPI y ejecuta las migraciones al consultar la aplicación. El servicio queda disponible en una dirección similar a `https://grapesense.onrender.com`.
+
+No modificar manualmente `DATABASE_URL`: el Blueprint la obtiene de PostgreSQL.
+`GRAPESENSE_SECRET_KEY` también se genera en Render y no debe copiarse al código.
 
 ## 3. Verificar el despliegue
 
@@ -98,6 +140,7 @@ Cuando la dirección `onrender.com` funcione:
 - Revisar los registros de Render cuando falle una consulta climática o un entrenamiento.
 - Probar los roles de cada bodega después de cada cambio relevante.
 - Mantener la aplicación y PostgreSQL en la misma región.
+- Recordar que el disco persistente permite una sola instancia del servicio.
 
 ## 8. Actualizaciones
 
@@ -106,8 +149,21 @@ Una actualización normal consiste en subir cambios a la rama conectada. Render 
 Antes de publicar una actualización:
 
 ```bash
-python -m py_compile modelo_final/backend/api.py modelo_final/backend/core/*.py modelo_final/backend/ml/*.py modelo_final/backend/services/*.py
-cd modelo_final/frontend && npm ci && npm run build
+python -m py_compile app/backend/api.py app/backend/core/*.py app/backend/ml/*.py app/backend/services/*.py
+cd app/frontend && npm ci && npm run build
 ```
 
 No utilizar el archivo `iniciar.sh` en Render: está pensado exclusivamente para ejecutar GrapeSense en la computadora local.
+
+## 9. Lista de aceptación
+
+Antes de considerar finalizado el despliegue:
+
+- `/api/health` responde `status: ok`;
+- se puede crear o restaurar la primera organización;
+- los tres roles acceden únicamente a las funciones permitidas;
+- una predicción consulta clima y queda almacenada;
+- una muestra y un seguimiento pueden crearse, editarse y eliminarse;
+- el análisis corresponde al modelo activo de la bodega seleccionada;
+- un entrenamiento candidato se conserva después de reiniciar el servicio;
+- se realizó y verificó al menos una restauración de respaldo.

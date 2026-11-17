@@ -4,6 +4,10 @@ Plataforma multiempresa de apoyo a la decisión de cosecha. GrapeSense reúne me
 
 > **Alcance científico.** Las muestras actualmente incluidas son sintéticas y el clima histórico proviene de datos reconstruidos. El sistema sirve para desarrollar y estudiar la metodología, pero todavía debe validarse con vendimias reales antes de utilizar una predicción como decisión enológica autónoma.
 
+**Estado actual:** aplicación y modelo base verificados localmente. La
+infraestructura para Render está preparada, pero todavía no fue desplegada ni
+genera costos. Consultar [`DEPLOY_RENDER.md`](DEPLOY_RENDER.md).
+
 ## Funciones principales
 
 - registra Brix, pH y acidez total expresada como g/L de ácido tartárico;
@@ -11,7 +15,7 @@ Plataforma multiempresa de apoyo a la decisión de cosecha. GrapeSense reúne me
 - almacena muestras, seguimientos y predicciones en PostgreSQL;
 - mantiene los datos aislados por bodega, finca y usuario;
 - permite completar un seguimiento cuando se conoce la cosecha efectiva;
-- entrena y evalúa un modelo independiente para cada bodega desde su propia base de datos;
+- entrena y evalúa un modelo independiente para cada bodega desde PostgreSQL;
 - conserva modelos candidatos sin reemplazar automáticamente el modelo activo;
 - muestra métricas, error por anticipación e importancia de variables para el análisis enológico.
 
@@ -27,7 +31,7 @@ Plataforma multiempresa de apoyo a la decisión de cosecha. GrapeSense reúne me
 
 ```text
 Tesis/
-├── modelo_final/
+├── app/
 │   ├── backend/
 │   │   ├── api.py                 # rutas HTTP y validación de solicitudes
 │   │   ├── core/                  # autenticación, PostgreSQL y multiempresa
@@ -44,12 +48,18 @@ Tesis/
 │   │   ├── src/types.ts           # contratos TypeScript
 │   │   └── src/App.tsx            # pantallas y flujo principal
 │   └── iniciar.sh                 # inicio local de toda la aplicación
-├── documentacion/                 # material de tesis
+├── scripts/                       # verificación y respaldo de PostgreSQL
 ├── clima/                         # trabajo climático previo; no es el código operativo
+├── Dockerfile                     # imagen de producción
+├── render.yaml                    # infraestructura prevista para Render
 └── requirements.txt               # dependencias Python
 ```
 
 Los modelos de cada bodega se generan durante el uso y no se suben a Git. El modelo de `modelos/base/` funciona como respaldo inicial.
+
+El material de trabajo del informe, las referencias privadas de la bodega y los
+respaldos locales se mantienen fuera de Git para evitar publicar información o
+archivos temporales accidentalmente.
 
 ## Puesta en marcha local
 
@@ -65,6 +75,10 @@ export DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/tesis_uva"
 
 Como alternativa se admiten `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` y `DB_PORT`.
 
+La plantilla [`.env.example`](.env.example) enumera las variables disponibles.
+La aplicación no carga archivos `.env` automáticamente; si se utiliza uno en
+desarrollo, las variables deben exportarse antes de iniciar el proceso.
+
 ### 2. Instalar dependencias
 
 Desde la raíz del proyecto:
@@ -74,7 +88,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-cd modelo_final/frontend
+cd app/frontend
 npm install
 npm run build
 cd ../..
@@ -83,7 +97,7 @@ cd ../..
 ### 3. Inicializar la base
 
 ```bash
-python -m modelo_final.backend.core.base_datos inicializar
+python -m app.backend.core.base_datos inicializar
 ```
 
 Las migraciones necesarias también se ejecutan de forma segura al iniciar la API.
@@ -91,12 +105,25 @@ Las migraciones necesarias también se ejecutan de forma segura al iniciar la AP
 ### 4. Iniciar GrapeSense
 
 ```bash
-./modelo_final/iniciar.sh
+./app/iniciar.sh
 ```
 
 Abrir [http://127.0.0.1:8000](http://127.0.0.1:8000). La documentación interactiva de la API está disponible en [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
 La primera ejecución muestra un asistente para crear la primera bodega y el administrador de plataforma. El secreto que firma las sesiones se genera localmente y está excluido de Git.
+
+### Si PostgreSQL no responde
+
+El mensaje `connection refused` indica que el servidor local no está iniciado o
+no escucha en el puerto esperado. En sistemas con `systemd`:
+
+```bash
+sudo systemctl start postgresql
+pg_isready -h /var/run/postgresql -p 5432 -d tesis_uva
+```
+
+Después se puede volver a ejecutar `./app/iniciar.sh`. Si se usa una
+instalación diferente, revisar `DATABASE_URL` o las variables `DB_*`.
 
 ## Flujo de uso
 
@@ -125,11 +152,11 @@ Cada resultado queda guardado en `predicciones_uva` junto con las entradas, vent
 
 ### Importación de datos
 
-La pantalla **Base de muestras → Cargar nuevas muestras** acepta un CSV de hasta 250 filas por operación. La plantilla incluye identificadores, fecha, variedad, química y el objetivo cuando ya se conoce. El entrenamiento no depende de separar manualmente CSV de entrenamiento y evaluación: usa PostgreSQL directamente.
+La pantalla **Base de muestras → Cargar nuevas muestras** acepta un CSV de hasta 250 filas por operación y lo incorpora a PostgreSQL. Para cargas históricas mayores puede utilizarse el comando `base_datos agregar` desde el editor. El modelo nunca entrena directamente sobre un archivo: PostgreSQL es la fuente única de entrenamiento.
 
 ## Entrenamiento por bodega
 
-El entrenamiento se ejecuta desde **Administración → Modelos de la bodega**. Sólo utiliza muestras de la bodega activa que:
+El entrenamiento se ejecuta desde **Administración → Modelos de la bodega** y utiliza los datos completos de PostgreSQL. Sólo toma muestras de la bodega activa que:
 
 - tengan `dias_hasta_cosecha` completo;
 - pertenezcan a un lote con muestra final de cosecha en cero días;
@@ -143,6 +170,31 @@ La política automática evita que mediciones del mismo lote y vendimia aparezca
 - exige al menos 30 mediciones de entrenamiento y 12 de evaluación.
 
 El resultado se registra como **candidato**. No afecta las predicciones hasta que el administrador de plataforma lo revise y lo active. El artefacto guarda métricas, vendimias, identificadores de ambos conjuntos y una copia de la evaluación para reproducir el análisis.
+
+El mismo flujo puede administrarse desde el editor, en la raíz del proyecto. Si los datos están en un CSV, primero se cargan en `muestras_uva` indicando la bodega y luego se entrena desde PostgreSQL:
+
+```bash
+# Consultar el identificador de cada bodega
+python -m app.backend.ml.entrenamiento_bodega bodegas
+
+# Incorporar o actualizar las muestras del CSV en PostgreSQL
+python -m app.backend.core.base_datos agregar ruta/a/muestras.csv --bodega 1
+
+# Comprobar la división que se realizará
+python -m app.backend.ml.entrenamiento_bodega estado --bodega 1
+
+# Entrenar con los datos completos de esa bodega en PostgreSQL
+python -m app.backend.ml.entrenamiento_bodega entrenar-db \
+  --bodega 1 --nombre "Cassone base actualizada"
+
+# Revisar los modelos y conocer sus identificadores
+python -m app.backend.ml.entrenamiento_bodega listar --bodega 1
+
+# Activar sólo después de revisar las métricas del candidato
+python -m app.backend.ml.entrenamiento_bodega activar --bodega 1 --modelo 3
+```
+
+El CSV de carga debe contener las columnas completas definidas para `muestras_uva`, incluidas las variables climáticas. No se crea una tabla por archivo ni por bodega: todos los registros permanecen en `muestras_uva` y se aíslan mediante `bodega_id`. Los comandos usan `DATABASE_URL` o las mismas variables `DB_*` que la aplicación. Entrenar no cambia el modelo activo; `activar` es una acción separada.
 
 ## Modelo y variables
 
@@ -160,11 +212,11 @@ El modelo actual es un `GradientBoostingRegressor`. Predice `dias_hasta_cosecha`
 Para reproducir el análisis del modelo base:
 
 ```bash
-python -m modelo_final.backend.ml.modelo evaluar modelo_final/backend/datos/evaluacion_2024.csv
-python -m modelo_final.backend.ml.modelo evaluar modelo_final/backend/datos/evaluacion_2026_sintetica.csv
+python -m app.backend.ml.modelo app/backend/datos/evaluacion_2024.csv
+python -m app.backend.ml.modelo app/backend/datos/evaluacion_2026_sintetica.csv
 ```
 
-El comando `entrenar` del módulo conserva únicamente la reproducción histórica del modelo base. El flujo multiempresa recomendado es el de la interfaz y PostgreSQL.
+El módulo `modelo` contiene el algoritmo y permite evaluar un artefacto. Para entrenar modelos por bodega debe usarse `entrenamiento_bodega`, desde la interfaz o desde el editor, siempre sobre PostgreSQL.
 
 ## Entidades principales de PostgreSQL
 
@@ -187,28 +239,40 @@ El comando `entrenar` del módulo conserva únicamente la reproducción históri
 Después de cambiar el frontend:
 
 ```bash
-cd modelo_final/frontend
+cd app/frontend
 npm run build
 ```
 
 FastAPI sirve la compilación de `frontend/dist`, por lo que el uso normal requiere un solo proceso. Para comprobar el backend y el frontend:
 
 ```bash
-python -m py_compile modelo_final/backend/api.py modelo_final/backend/core/*.py modelo_final/backend/ml/*.py modelo_final/backend/services/*.py
-cd modelo_final/frontend && npm run build
+python -m py_compile app/backend/api.py app/backend/core/*.py app/backend/ml/*.py app/backend/services/*.py
+cd app/frontend && npm run build
 ```
+
+También se puede ejecutar toda la verificación local mediante:
+
+```bash
+./scripts/verificar_proyecto.sh
+```
+
+El repositorio incluye una verificación automática de GitHub Actions para el
+backend, el modelo base y el frontend.
 
 ## Despliegue en Render
 
 El proyecto incluye un contenedor de producción y un `render.yaml` que crea el servicio web, PostgreSQL y el disco persistente de modelos. La guía completa, incluida la migración de la base local, está en [`DEPLOY_RENDER.md`](DEPLOY_RENDER.md).
 
-La ejecución local continúa utilizando `./modelo_final/iniciar.sh`; Render utiliza el `Dockerfile` de la raíz.
+La ejecución local continúa utilizando `./app/iniciar.sh`; Render utiliza el `Dockerfile` de la raíz.
 
 Para preparar un respaldo privado antes de migrar:
 
 ```bash
 ./scripts/respaldo_postgresql.sh
 ```
+
+La configuración actual requiere planes compatibles con PostgreSQL y un disco
+persistente. Crear el Blueprint será una acción posterior y separada.
 
 ## Criterio de validación
 

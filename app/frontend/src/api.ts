@@ -1,6 +1,5 @@
 import type {
   AppOptions,
-  Block,
   Farm,
   Followup,
   ModelAnalysis,
@@ -102,8 +101,6 @@ export const api = {
     request<Farm>(`/api/admin/farms/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteFarm: (id: number) =>
     request<{ eliminada: string }>(`/api/admin/farms/${id}`, { method: 'DELETE' }),
-  createBlock: (data: { finca_id: number; nombre: string; variedad: string | null; hectareas: number | null }) =>
-    request<Block>('/api/admin/blocks', { method: 'POST', body: JSON.stringify(data) }),
   createUser: (data: { nombre: string; email: string; password: string; rol: string }) =>
     request('/api/admin/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: number, data: { nombre: string; email: string; password: string | null; rol: string }) =>

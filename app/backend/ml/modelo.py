@@ -1,4 +1,4 @@
-"""Entrena, evalúa o ejecuta el modelo final de días hasta cosecha."""
+"""Núcleo de entrenamiento, evaluación e inferencia de GrapeSense."""
 from pathlib import Path
 import argparse
 import json
@@ -16,7 +16,6 @@ from sklearn.preprocessing import OneHotEncoder
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ROOT = BACKEND_ROOT
 MODEL_PATH = BACKEND_ROOT / "modelos/base/modelo_final.joblib"
-TRAIN_PATH = BACKEND_ROOT / "datos/entrenamiento_2022_2023.csv"
 TARGET = "dias_hasta_cosecha"
 CATEGORICAL = ["variedad", "vinedo"]
 FEATURES = [
@@ -84,12 +83,6 @@ def fit_model(data, model_path, candidate="GB_depth3_trees100",
     return artifact
 
 
-def train(train_path=TRAIN_PATH, model_path=MODEL_PATH,
-          candidate="GB_depth3_trees100", training_vintages=None):
-    data = read_csv(train_path, require_target=True)
-    return fit_model(data, model_path, candidate, training_vintages)
-
-
 def evaluation_metrics(data, predicted):
     error = predicted - data[TARGET].to_numpy()
     return {
@@ -114,21 +107,6 @@ def evaluate(path, model_path=MODEL_PATH, show=True):
     if show:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     return result
-
-
-def run_prediction(input_path, output_path, save_database=False, notes=""):
-    data = read_csv(input_path)
-    artifact = load_artifact()
-    predictions = predict(artifact, data)
-    data["prediccion_dias_hasta_cosecha"] = predictions
-    data.to_csv(output_path, index=False)
-    print(f"Predicciones guardadas en {Path(output_path).resolve()}")
-    if save_database:
-        from ..core.base_datos import connect, initialize, save_predictions
-        version = artifact.get("version_datos", artifact.get("candidato", "modelo_final"))
-        with connect() as connection:
-            initialize(connection)
-            save_predictions(connection, data, predictions, version, notes)
 
 
 def predict_date(fecha, variedad, vinedo, brix, ph, acidez, lote_id=None,
@@ -199,48 +177,12 @@ def load_active_artifact(bodega_id):
     return artifact, artifact.get("candidato", "modelo_final")
 
 
-def run_date_prediction(args):
-    result = predict_date(
-        args.fecha, args.variedad, args.vinedo, args.brix, args.ph, args.acidez,
-        args.lote_id, args.muestra_id, args.notas,
-    )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("entrenar", help="Reentrena con datos/entrenamiento_2022_2023.csv")
-    evaluate_parser = commands.add_parser("evaluar", help="Evalúa un CSV que incluya el objetivo")
-    evaluate_parser.add_argument("csv")
-    evaluate_parser.add_argument("--modelo", default=str(MODEL_PATH))
-    predict_parser = commands.add_parser("predecir", help="Predice un CSV con las 19 entradas")
-    predict_parser.add_argument("entrada")
-    predict_parser.add_argument("salida")
-    predict_parser.add_argument("--guardar-db", action="store_true",
-                                help="Guarda también los resultados en predicciones_uva")
-    predict_parser.add_argument("--notas", default="", help="Nota para las predicciones almacenadas")
-    date_parser = commands.add_parser(
-        "predecir-fecha", help="Obtiene clima, predice y guarda automáticamente en PostgreSQL"
-    )
-    date_parser.add_argument("--fecha", required=True, help="Fecha de medición YYYY-MM-DD")
-    date_parser.add_argument("--variedad", required=True, choices=["Malbec", "Syrah", "Cabernet"])
-    date_parser.add_argument("--vinedo", required=True, choices=["Agrelo", "Drummond", "San Carlos"])
-    date_parser.add_argument("--brix", required=True, type=float)
-    date_parser.add_argument("--ph", required=True, type=float)
-    date_parser.add_argument("--acidez", required=True, type=float, help="g/L de ácido tartárico")
-    date_parser.add_argument("--lote-id")
-    date_parser.add_argument("--muestra-id")
-    date_parser.add_argument("--notas", default="")
+    parser = argparse.ArgumentParser(description="Evalúa un artefacto con un CSV etiquetado.")
+    parser.add_argument("csv")
+    parser.add_argument("--modelo", default=str(MODEL_PATH))
     args = parser.parse_args()
-    if args.command == "entrenar":
-        train()
-    elif args.command == "evaluar":
-        evaluate(args.csv, args.modelo)
-    elif args.command == "predecir":
-        run_prediction(args.entrada, args.salida, args.guardar_db, args.notas)
-    else:
-        run_date_prediction(args)
+    evaluate(args.csv, args.modelo)
 
 
 if __name__ == "__main__":

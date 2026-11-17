@@ -147,12 +147,13 @@ def read_samples(path):
     return frame
 
 
-def upsert_csv(connection, path):
+def upsert_csv(connection, path, bodega_id=None):
     frame = read_samples(path)
     def sql_name(column):
         return f'"{column}"' if column in {"Brix", "pH"} else column
 
-    quoted = [sql_name(column) for column in COLUMNS]
+    insert_columns = (["bodega_id"] if bodega_id is not None else []) + COLUMNS
+    quoted = [sql_name(column) for column in insert_columns]
     update_columns = [column for column in COLUMNS if column != "muestra_id"]
     assignments = ", ".join(
         f'{sql_name(column)} = EXCLUDED.{sql_name(column)}'
@@ -164,10 +165,27 @@ def upsert_csv(connection, path):
             {assignments}, fecha_actualizacion = NOW()
     """
     rows = [tuple(row) for row in frame.itertuples(index=False, name=None)]
+    if bodega_id is not None:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM bodegas WHERE bodega_id = %s AND activa", (bodega_id,))
+            if cursor.fetchone() is None:
+                raise ValueError(f"No existe una bodega activa con id {bodega_id}")
+            cursor.execute("""
+                SELECT muestra_id FROM muestras_uva
+                WHERE muestra_id = ANY(%s) AND bodega_id <> %s LIMIT 1
+            """, (frame["muestra_id"].tolist(), bodega_id))
+            conflict = cursor.fetchone()
+            if conflict:
+                raise ValueError(
+                    f"El muestra_id {conflict[0]} ya pertenece a otra bodega; cambia ese identificador",
+                )
+        rows = [(bodega_id, *row) for row in rows]
+        sql += " WHERE muestras_uva.bodega_id = EXCLUDED.bodega_id"
     with connection.cursor() as cursor:
         execute_values(cursor, sql, rows, page_size=500)
     connection.commit()
-    print(f"{len(rows)} muestras almacenadas o actualizadas desde {Path(path).name}")
+    destination = f" en la bodega {bodega_id}" if bodega_id is not None else ""
+    print(f"{len(rows)} muestras almacenadas o actualizadas{destination} desde {Path(path).name}")
 
 
 def import_history(connection):
@@ -368,14 +386,17 @@ def main():
     commands.add_parser("importar-historico", help="Carga 2022, 2023 y 2024")
     add_parser = commands.add_parser("agregar", help="Almacena o actualiza un CSV")
     add_parser.add_argument("csv")
+    add_parser.add_argument("--bodega", type=int, required=True, help="ID de la bodega propietaria")
     commands.add_parser("resumen", help="Muestra cantidad de muestras por vendimia")
     args = parser.parse_args()
     with connect() as connection:
         initialize(connection)
+        from .multiempresa import initialize_multitenancy
+        initialize_multitenancy(connection)
         if args.command == "importar-historico":
             import_history(connection)
         elif args.command == "agregar":
-            upsert_csv(connection, args.csv)
+            upsert_csv(connection, args.csv, args.bodega)
         elif args.command == "resumen":
             show_summary(connection)
     if args.command == "inicializar":

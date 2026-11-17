@@ -1,5 +1,7 @@
-"""Entrenamiento reproducible por bodega directamente desde PostgreSQL."""
+"""Entrenamiento reproducible por bodega exclusivamente desde PostgreSQL."""
+import argparse
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import os
 import re
@@ -91,6 +93,8 @@ def split_samples(data, bodega_id):
         raise ValueError(f"Sólo hay {len(training)} muestras de entrenamiento; se necesitan al menos {MIN_TRAIN_SAMPLES}")
     if len(evaluation) < MIN_EVALUATION_SAMPLES:
         raise ValueError(f"Sólo hay {len(evaluation)} muestras de evaluación; se necesitan al menos {MIN_EVALUATION_SAMPLES}")
+    if training[TARGET].nunique() < 2 or evaluation[TARGET].nunique() < 2:
+        raise ValueError("Entrenamiento y evaluación deben contener más de un valor de días hasta cosecha")
     train_keys = set(zip(training["vendimia"], training["lote_id"]))
     evaluation_keys = set(zip(evaluation["vendimia"], evaluation["lote_id"]))
     if train_keys & evaluation_keys:
@@ -123,15 +127,17 @@ def readiness(connection, bodega_id):
         return {**base, "puede_entrenar": False, "motivo": str(error)}
 
 
-def train_winery_model(connection, bodega_id):
+def _train_candidate(connection, bodega_id, data, model_name=None):
     with connection.cursor() as cursor:
         cursor.execute("SELECT nombre, slug FROM bodegas WHERE bodega_id = %s AND activa", (bodega_id,))
         winery = cursor.fetchone()
     if winery is None:
         raise ValueError("La bodega no existe")
-    data = load_completed_samples(connection, bodega_id)
+    candidate_name = (model_name or f"Candidato {winery[0]}").strip()
+    if len(candidate_name) > 120:
+        raise ValueError("El nombre del modelo no puede superar 120 caracteres")
     training, evaluation, policy = split_samples(data, bodega_id)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
     version = f"GB_{_safe_name(winery[0])}_{timestamp}"
     directory = MODELS_DIR / f"bodega_{bodega_id}"
     directory.mkdir(parents=True, exist_ok=True)
@@ -159,6 +165,7 @@ def train_winery_model(connection, bodega_id):
     model_metrics = evaluation_metrics(evaluation, predicted)
     model_metrics.update({
         "politica": policy,
+        "fuente_entrenamiento": "PostgreSQL / muestras_uva",
         "vendimias_entrenamiento": artifact["entrenamiento_vendimias"],
         "vendimias_evaluacion": artifact["vendimias_evaluacion"],
         "entrenamiento_muestras": int(len(training)),
@@ -167,21 +174,31 @@ def train_winery_model(connection, bodega_id):
     })
     artifact["metricas_evaluacion"] = model_metrics
     joblib.dump(artifact, model_path)
-    with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute("""
-            INSERT INTO modelos_bodega
-                (bodega_id, nombre, version, ruta_artefacto, vendimias_entrenamiento,
-                 metricas, activo, fecha_entrenamiento)
-            VALUES (%s, %s, %s, %s, %s, %s, FALSE, NOW())
-            RETURNING modelo_bodega_id, nombre, version, vendimias_entrenamiento,
-                      metricas, activo, fecha_entrenamiento
-        """, (
-            bodega_id, f"Candidato {winery[0]}", version, str(model_path),
-            ", ".join(map(str, artifact["entrenamiento_vendimias"])), Json(model_metrics),
-        ))
-        registered = cursor.fetchone()
-    connection.commit()
+    try:
+        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute("""
+                INSERT INTO modelos_bodega
+                    (bodega_id, nombre, version, ruta_artefacto, vendimias_entrenamiento,
+                     metricas, activo, fecha_entrenamiento)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, NOW())
+                RETURNING modelo_bodega_id, nombre, version, vendimias_entrenamiento,
+                          metricas, activo, fecha_entrenamiento
+            """, (
+                bodega_id, candidate_name, version, str(model_path),
+                ", ".join(map(str, artifact["entrenamiento_vendimias"])), Json(model_metrics),
+            ))
+            registered = cursor.fetchone()
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        model_path.unlink(missing_ok=True)
+        raise
     return dict(registered)
+
+
+def train_winery_model(connection, bodega_id, model_name=None):
+    data = load_completed_samples(connection, bodega_id)
+    return _train_candidate(connection, bodega_id, data, model_name)
 
 
 def activate_model(connection, bodega_id, model_id):
@@ -206,3 +223,59 @@ def activate_model(connection, bodega_id, model_id):
         activated = cursor.fetchone()
     connection.commit()
     return dict(activated)
+
+
+def _json_default(value):
+    if isinstance(value, (datetime, pd.Timestamp)):
+        return value.isoformat()
+    return str(value)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Entrena, lista y activa modelos por bodega desde PostgreSQL.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("bodegas", help="Lista las bodegas y sus identificadores")
+    status_parser = commands.add_parser("estado", help="Revisa si la base tiene datos suficientes")
+    status_parser.add_argument("--bodega", type=int, required=True)
+    database_parser = commands.add_parser("entrenar-db", help="Entrena con muestras_uva")
+    database_parser.add_argument("--bodega", type=int, required=True)
+    database_parser.add_argument("--nombre")
+    list_parser = commands.add_parser("listar", help="Lista los modelos registrados")
+    list_parser.add_argument("--bodega", type=int, required=True)
+    activate_parser = commands.add_parser("activar", help="Activa un candidato registrado")
+    activate_parser.add_argument("--bodega", type=int, required=True)
+    activate_parser.add_argument("--modelo", type=int, required=True)
+    args = parser.parse_args()
+
+    from ..core.base_datos import connect, initialize
+    from ..core.multiempresa import initialize_multitenancy
+
+    with connect() as connection:
+        initialize(connection)
+        initialize_multitenancy(connection)
+        if args.command == "bodegas":
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("SELECT bodega_id, nombre, slug, activa FROM bodegas ORDER BY nombre")
+                result = {"items": [dict(row) for row in cursor.fetchall()]}
+        elif args.command == "estado":
+            result = readiness(connection, args.bodega)
+        elif args.command == "entrenar-db":
+            result = train_winery_model(connection, args.bodega, args.nombre)
+        elif args.command == "activar":
+            result = activate_model(connection, args.bodega, args.modelo)
+        else:
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    SELECT modelo_bodega_id, nombre, version, vendimias_entrenamiento,
+                           metricas, activo, fecha_entrenamiento
+                    FROM modelos_bodega WHERE bodega_id = %s
+                    ORDER BY fecha_creacion DESC
+                """, (args.bodega,))
+                result = {"items": [dict(row) for row in cursor.fetchall()]}
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=_json_default))
+
+
+if __name__ == "__main__":
+    main()

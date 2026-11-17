@@ -1,18 +1,38 @@
-
+# Python
 __pycache__/
 *.py[cod]
 *.so
 venv/
-.env
-.streamlit/
-.DS_Store
-referencia_bodega/
+.venv/
+
+# Frontend
 node_modules/
 *.tsbuildinfo
-modelo_final/backend/.grapesense_secret
-modelo_final/backend/modelos/bodega_*/
-clima
-.codex
-.agents
-documentacion
+app/frontend/dist/
+
+# Configuración y secretos locales
+.env
+.env.*
+!.env.example
+.streamlit/
+app/backend/.grapesense_secret
+
+# Artefactos generados durante la operación
+app/backend/modelos/bodega_*/
 backups/
+*.log
+
+# Material local de investigación e informe
+referencia_bodega/
+documentacion/
+informe_actualizado/
+figuras/
+
+# Herramientas locales
+.codex/
+.agents/
+.DS_Store
+
+# La carpeta clima contiene material histórico ya versionado. Se ignoran
+# únicamente archivos nuevos para evitar incorporar exportaciones accidentales.
+clima/

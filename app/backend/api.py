@@ -128,13 +128,6 @@ class UserEditInput(BaseModel):
     password: str | None = Field(default=None, min_length=10, max_length=128)
 
 
-class BlockInput(BaseModel):
-    finca_id: int
-    nombre: str = Field(min_length=1, max_length=120)
-    variedad: str | None = Field(default=None, max_length=80)
-    hectareas: float | None = Field(default=None, gt=0)
-
-
 class UserInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
     email: EmailStr
@@ -509,7 +502,6 @@ def organization(user: AdminUser):
         prepare(connection)
         tenant = get_tenant(connection, user.bodega_id)
         farms = list_farms(connection, user.bodega_id)
-        blocks = list_blocks(connection, user.bodega_id)
         with connection.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute("""
                 SELECT usuario_id, nombre, email, rol, activo, fecha_creacion
@@ -522,7 +514,7 @@ def organization(user: AdminUser):
                 FROM modelos_bodega WHERE bodega_id = %s ORDER BY fecha_creacion DESC
             """, (user.bodega_id,))
             models = cursor.fetchall()
-    return {"bodega": tenant, "fincas": farms, "cuarteles": blocks, "usuarios": users, "modelos": models}
+    return {"bodega": tenant, "fincas": farms, "usuarios": users, "modelos": models}
 
 
 @app.get("/api/admin/models/readiness")
@@ -637,27 +629,6 @@ def remove_farm(farm_id: int, user: AdminUser):
                 )
         connection.commit()
     return {"eliminada": row[0], "historial_conservado": bool(related)}
-
-
-@app.post("/api/admin/blocks", status_code=201)
-def create_block(payload: BlockInput, user: AdminUser):
-    try:
-        with connect() as connection:
-            prepare(connection)
-            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("SELECT 1 FROM fincas WHERE finca_id = %s AND bodega_id = %s", (payload.finca_id, user.bodega_id))
-                if cursor.fetchone() is None:
-                    raise HTTPException(status_code=404, detail="Finca no encontrada")
-                cursor.execute("""
-                    INSERT INTO cuarteles (bodega_id, finca_id, nombre, variedad, hectareas)
-                    VALUES (%s, %s, %s, %s, %s)
-                    RETURNING cuartel_id, finca_id, nombre, variedad, hectareas, activo
-                """, (user.bodega_id, payload.finca_id, payload.nombre.strip(), payload.variedad, payload.hectareas))
-                row = cursor.fetchone()
-            connection.commit()
-        return row
-    except psycopg2.IntegrityError as error:
-        raise HTTPException(status_code=409, detail="Ya existe ese cuartel en la finca") from error
 
 
 @app.post("/api/admin/users", status_code=201)

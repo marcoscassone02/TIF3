@@ -175,7 +175,6 @@ export type Followup = {
 export type Organization = {
   bodega: { bodega_id: number; nombre: string; slug: string; activa: boolean; fecha_creacion: string }
   fincas: Farm[]
-  cuarteles: Block[]
   usuarios: { usuario_id: number; nombre: string; email: string; rol: string; activo: boolean; fecha_creacion: string }[]
-  modelos: { modelo_bodega_id: number; nombre: string; version: string; vendimias_entrenamiento: string | null; metricas: Metrics & { politica?: string } | null; activo: boolean; fecha_entrenamiento: string | null }[]
+  modelos: { modelo_bodega_id: number; nombre: string; version: string; vendimias_entrenamiento: string | null; metricas: Metrics & { politica?: string; fuente_entrenamiento?: string } | null; activo: boolean; fecha_entrenamiento: string | null }[]
 }
