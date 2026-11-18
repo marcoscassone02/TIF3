@@ -25,11 +25,12 @@ CREATE TABLE IF NOT EXISTS bodegas (
 
 CREATE TABLE IF NOT EXISTS usuarios (
     usuario_id BIGSERIAL PRIMARY KEY,
-    bodega_id BIGINT NOT NULL REFERENCES bodegas(bodega_id),
+    bodega_id BIGINT REFERENCES bodegas(bodega_id),
     nombre TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     rol TEXT NOT NULL CHECK (rol IN ('superadmin', 'admin', 'usuario')),
+    administrado_entorno BOOLEAN NOT NULL DEFAULT FALSE,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -45,10 +46,18 @@ CREATE TABLE IF NOT EXISTS fincas (
     UNIQUE (bodega_id, nombre)
 );
 
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS administrado_entorno BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE usuarios ALTER COLUMN bodega_id DROP NOT NULL;
 ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
+ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_ambito_check;
 UPDATE usuarios SET rol = 'usuario' WHERE rol IN ('enologo', 'consulta');
+UPDATE usuarios SET bodega_id = NULL WHERE rol = 'superadmin';
 ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check
     CHECK (rol IN ('superadmin', 'admin', 'usuario'));
+ALTER TABLE usuarios ADD CONSTRAINT usuarios_ambito_check CHECK (
+    (rol = 'superadmin' AND bodega_id IS NULL)
+    OR (rol IN ('admin', 'usuario') AND bodega_id IS NOT NULL)
+);
 
 CREATE TABLE IF NOT EXISTS cuarteles (
     cuartel_id BIGSERIAL PRIMARY KEY,
@@ -196,8 +205,8 @@ def initialize_multitenancy(connection):
 def bootstrap_required(connection):
     initialize_multitenancy(connection)
     with connection.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        return cursor.fetchone()[0] == 0
+        cursor.execute("SELECT 1 FROM usuarios WHERE rol = 'superadmin' AND activo LIMIT 1")
+        return cursor.fetchone() is None
 
 
 def get_tenant(connection, bodega_id):

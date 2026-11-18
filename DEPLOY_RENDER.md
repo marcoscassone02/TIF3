@@ -75,6 +75,10 @@ El primer despliegue construye React, instala Python, inicia FastAPI y ejecuta l
 
 No modificar manualmente `DATABASE_URL`: el Blueprint la obtiene de PostgreSQL.
 `GRAPESENSE_SECRET_KEY` también se genera en Render y no debe copiarse al código.
+Render solicitará `GRAPESENSE_PLATFORM_ADMIN_PASSWORD` durante la sincronización
+del Blueprint. Debe utilizarse una contraseña segura de al menos 10 caracteres;
+su valor no queda guardado en GitHub. El nombre y el correo del administrador
+global se toman de las demás variables declaradas en `render.yaml`.
 
 ## 3. Verificar el despliegue
 

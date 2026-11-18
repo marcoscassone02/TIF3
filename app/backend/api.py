@@ -16,7 +16,8 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .ml.analisis_modelo import model_analysis
 from .core.auth import (
-    CurrentUser, authenticate, create_token, get_current_user, password_hash, require_roles,
+    CurrentUser, authenticate, create_token, get_current_user, initialize_platform_admin,
+    password_hash, require_roles,
 )
 from .core.base_datos import (
     connect, get_prediction, get_predictions, get_sample_summary, get_samples, initialize,
@@ -162,7 +163,9 @@ app.add_middleware(
 
 def prepare(connection):
     initialize(connection)
-    return initialize_multitenancy(connection)
+    default_id = initialize_multitenancy(connection)
+    initialize_platform_admin(connection)
+    return default_id
 
 
 def serialize(value):
@@ -215,8 +218,8 @@ def bootstrap(payload: BootstrapInput):
             )
             cursor.execute("""
                 INSERT INTO usuarios (bodega_id, nombre, email, password_hash, rol)
-                VALUES (%s, %s, LOWER(%s), %s, 'superadmin') RETURNING usuario_id
-            """, (default_id, payload.nombre.strip(), str(payload.email), password_hash.hash(payload.password)))
+                VALUES (NULL, %s, LOWER(%s), %s, 'superadmin') RETURNING usuario_id
+            """, (payload.nombre.strip(), str(payload.email), password_hash.hash(payload.password)))
             user_id = cursor.fetchone()[0]
         connection.commit()
     user = {

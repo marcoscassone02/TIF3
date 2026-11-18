@@ -6,12 +6,14 @@ GrapeSense es una plataforma web multiempresa para el seguimiento de la maduraci
 
 La aplicación se encuentra desplegada en **Render** mediante una imagen Docker y utiliza los siguientes recursos de producción:
 
+**Aplicación en producción:** [https://grapesense.onrender.com/](https://grapesense.onrender.com/)
+
 - un servicio web que ejecuta React y FastAPI;
 - una base PostgreSQL administrada por Render;
 - un disco persistente para conservar los modelos entrenados de cada bodega;
 - conexión con Open-Meteo para obtener clima histórico y pronósticos.
 
-La dirección pública se administra desde el panel de Render y no se incluye en el repositorio. El estado del servicio puede comprobarse mediante el endpoint `/api/health`.
+El estado del servicio puede comprobarse mediante [https://grapesense.onrender.com/api/health](https://grapesense.onrender.com/api/health).
 
 > **Alcance científico.** GrapeSense es una herramienta de apoyo a la decisión. Sus resultados deben interpretarse junto con el criterio del enólogo, la inspección del viñedo y otros indicadores de madurez. La validación comercial requiere incorporar y evaluar seguimientos reales de cada bodega durante nuevas vendimias.
 
@@ -229,7 +231,7 @@ Los datos se conservan en PostgreSQL administrado. Los archivos Joblib generados
 
 - **Usuario de bodega:** consulta la base, realiza predicciones y administra seguimientos y muestras.
 - **Administrador de bodega:** además gestiona las fincas y los usuarios de su organización.
-- **Administrador de plataforma:** administra todas las bodegas y controla el entrenamiento, evaluación y activación de modelos.
+- **Administrador de plataforma:** es una cuenta global, no pertenece a ninguna bodega. Puede seleccionar y administrar cualquier organización, además de controlar el entrenamiento, evaluación y activación de modelos.
 
 ## Despliegue y actualizaciones
 
@@ -238,7 +240,7 @@ La infraestructura está declarada en [`render.yaml`](render.yaml):
 - servicio web Docker `grapesense`;
 - PostgreSQL administrado `grapesense-db`;
 - disco persistente `grapesense-models`;
-- variables seguras `DATABASE_URL`, `GRAPESENSE_SECRET_KEY` y `MODEL_STORAGE_DIR`.
+- variables seguras `DATABASE_URL`, `GRAPESENSE_SECRET_KEY`, `MODEL_STORAGE_DIR` y las credenciales iniciales del administrador de plataforma.
 
 Render construye el frontend, instala el backend e inicia Uvicorn a partir del [`Dockerfile`](Dockerfile). Los cambios publicados en la rama conectada generan una nueva imagen y un nuevo despliegue, conservando la base y el disco de modelos.
 
