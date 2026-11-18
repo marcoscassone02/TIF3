@@ -54,7 +54,7 @@ class BootstrapInput(BaseModel):
     bodega_nombre: str = Field(min_length=2, max_length=120)
     nombre: str = Field(min_length=2, max_length=120)
     email: EmailStr
-    password: str = Field(min_length=10, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
 
 
 class PredictionInput(BaseModel):
@@ -129,13 +129,13 @@ class UserEditInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
     email: EmailStr
     rol: Literal["admin", "usuario"]
-    password: str | None = Field(default=None, min_length=10, max_length=128)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class UserInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
     email: EmailStr
-    password: str = Field(min_length=10, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     rol: Literal["admin", "usuario"]
 
 
@@ -143,7 +143,7 @@ class WineryInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
     admin_nombre: str = Field(min_length=2, max_length=120)
     admin_email: EmailStr
-    admin_password: str = Field(min_length=10, max_length=128)
+    admin_password: str = Field(min_length=8, max_length=128)
 
 
 app = FastAPI(

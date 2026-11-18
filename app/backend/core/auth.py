@@ -44,8 +44,8 @@ def initialize_platform_admin(connection):
             "La cuenta de plataforma requiere GRAPESENSE_PLATFORM_ADMIN_NAME, "
             "GRAPESENSE_PLATFORM_ADMIN_EMAIL y GRAPESENSE_PLATFORM_ADMIN_PASSWORD"
         )
-    if len(password) < 10:
-        raise RuntimeError("La contraseña del administrador de plataforma debe tener al menos 10 caracteres")
+    if len(password) < 8:
+        raise RuntimeError("La contraseña del administrador de plataforma debe tener al menos 8 caracteres")
 
     with connection.cursor() as cursor:
         cursor.execute("""
